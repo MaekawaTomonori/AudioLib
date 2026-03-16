@@ -1,0 +1,10 @@
+﻿################################################################################
+# この .gitignore ファイルは Microsoft(R) Visual Studio によって自動的に作成されました。
+################################################################################
+
+/Sample/.vs/Sample.slnx
+/.claude
+/Sample/.vs/Sample/CopilotIndices/18.0.988.22099
+/Sample/out/x64/Debug
+/.vs/Sample.slnx
+/.vs/Sample/CopilotIndices/18.0.988.22099
