@@ -64,6 +64,8 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -85,6 +87,8 @@
       </PrecompiledHeaderFile>
       <Optimization>MinSpace</Optimization>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -93,16 +97,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="include\Audio.hpp" />
+    <ClInclude Include="include\Handle.hpp" />
+    <ClInclude Include="include\PlaybackHandle.hpp" />
+    <ClInclude Include="include\AudioLib.hpp" />
+    <ClInclude Include="src\Internal.hpp" />
     <ClInclude Include="src\Loader.hpp" />
     <ClInclude Include="src\Mixer.hpp" />
     <ClInclude Include="src\Repository.hpp" />
+    <ClInclude Include="src\Sound.hpp" />
+    <ClInclude Include="vendor\miniaudio.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="src\Handle.cpp" />
+    <ClCompile Include="src\PlaybackHandle.cpp" />
+    <ClCompile Include="src\AudioLib.cpp" />
+    <ClCompile Include="src\Internal.cpp" />
     <ClCompile Include="src\Loader.cpp" />
     <ClCompile Include="src\Mixer.cpp" />
     <ClCompile Include="src\Repository.cpp" />
+    <ClCompile Include="src\Sound.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
