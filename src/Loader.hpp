@@ -1,15 +1,13 @@
 #ifndef Loader_HPP_
 #define Loader_HPP_
+#include <memory>
+#include <string_view>
 
-namespace Audio {
-    class Loader {
-    public:
-        Loader();
-        ~Loader();
+#include "Sound.hpp"
 
-    private:
 
-    }; // class Loader
-}
+namespace Audio::Loader {
+    std::unique_ptr<Sound> Load(std::string_view _path);
+} // namespace Handle::Loader
 
 #endif // Loader_HPP_
