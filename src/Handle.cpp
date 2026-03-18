@@ -20,9 +20,9 @@ namespace Audio {
     }
 
     PlaybackHandle Handle::Play(const float& _volume, const float& _pitch, const bool& _loop) const {
-        const auto path = Internal::GetRepository()->FindName(handle_);
-        if (path.empty()) return {};
-        const uint64_t id = Internal::GetMixer()->Play(path);
+        const Sound* sound = Internal::GetRepository()->Find(handle_);
+        if (!sound || !sound->IsValid()) return {};
+        const uint64_t id = Internal::GetMixer()->Play(handle_, *sound);
         PlaybackHandle handle(id);
         handle.SetVolume(_volume);
         handle.SetPitch(_pitch);

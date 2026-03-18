@@ -2,25 +2,20 @@
 #define Mixer_HPP_
 
 #include <cstdint>
-#include <string>
-#include <string_view>
+#include <memory>
 #include <unordered_map>
 
+#include "Sound.hpp"
+
 struct ma_engine;
-struct ma_sound;
 
 namespace Audio {
 
     class Mixer {
-        struct PlaybackInstance {
-            ma_sound*   sound  = nullptr;
-            std::string path;
-            float       volume = 1.0f;
-            bool        muted  = false;
-        };
+        struct PlaybackInstance;
 
         ma_engine* engine_ = nullptr;
-        std::unordered_map<uint64_t, PlaybackInstance> sounds_;
+        std::unordered_map<uint64_t, std::shared_ptr<PlaybackInstance>> sounds_;
         uint64_t nextId_ = 1;
 
     public:
@@ -28,7 +23,7 @@ namespace Audio {
         bool Init();
         void Shutdown();
 
-        uint64_t Play(std::string_view _path);
+        uint64_t Play(uint64_t _soundId, const Sound& _sound);
         bool IsPlaying(uint64_t _id) const;
 
         void Stop(uint64_t _id);
