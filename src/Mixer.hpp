@@ -13,8 +13,10 @@ namespace Audio {
 
     class Mixer {
         struct PlaybackInstance {
-            ma_sound*   sound = nullptr;
+            ma_sound*   sound  = nullptr;
             std::string path;
+            float       volume = 1.0f;
+            bool        muted  = false;
         };
 
         ma_engine* engine_ = nullptr;
@@ -36,8 +38,8 @@ namespace Audio {
         void SetVolume(uint64_t _id, float _volume);
         void SetPan(uint64_t _id, float _pan);
         void SetPitch(uint64_t _id, float _pitch);
-        void SetMasterVolume(float _volume);
-        void Mix(float* _output, uint32_t _frameCount, uint32_t _channels);
+        void SetLoop(uint64_t _id, bool _loop);
+        void SetMasterVolume(float _volume) const;
     };
 
 } // namespace Audio

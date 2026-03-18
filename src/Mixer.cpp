@@ -75,14 +75,62 @@ namespace Audio {
         return ma_sound_is_playing(it->second.sound) == MA_TRUE;
     }
 
-    void Mixer::Stop(uint64_t _id) { }
-    void Mixer::Pause(uint64_t _id) { }
-    void Mixer::Resume(uint64_t _id) { }
-    void Mixer::Mute(uint64_t _id, bool _mute) { }
-    void Mixer::SetVolume(uint64_t _id, float _volume) { }
-    void Mixer::SetPan(uint64_t _id, float _pan) { }
-    void Mixer::SetPitch(uint64_t _id, float _pitch) { }
-    void Mixer::SetMasterVolume(float _volume) { }
-    void Mixer::Mix(float* _output, uint32_t _frameCount, uint32_t _channels) { }
+    void Mixer::Stop(uint64_t _id) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        ma_sound_stop(it->second.sound);
+        ma_sound_seek_to_pcm_frame(it->second.sound, 0);
+    }
+
+    void Mixer::Pause(uint64_t _id) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        ma_sound_stop(it->second.sound);
+    }
+
+    void Mixer::Resume(uint64_t _id) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        ma_sound_start(it->second.sound);
+    }
+
+    void Mixer::SetVolume(uint64_t _id, float _volume) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        PlaybackInstance& instance = it->second;
+        instance.volume = _volume;
+        if (!instance.muted) ma_sound_set_volume(instance.sound, _volume);
+    }
+
+    void Mixer::SetPan(uint64_t _id, float _pan) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        ma_sound_set_pan(it->second.sound, _pan);
+    }
+
+    void Mixer::SetPitch(uint64_t _id, float _pitch) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        ma_sound_set_pitch(it->second.sound, _pitch);
+    }
+
+    void Mixer::SetLoop(uint64_t _id, bool _loop) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        ma_sound_set_looping(it->second.sound, _loop ? MA_TRUE : MA_FALSE);
+    }
+
+    void Mixer::Mute(uint64_t _id, bool _mute) {
+        const auto it = sounds_.find(_id);
+        if (it == sounds_.end()) return;
+        PlaybackInstance& instance = it->second;
+        instance.muted = _mute;
+        ma_sound_set_volume(instance.sound, _mute ? 0.0f : instance.volume);
+    }
+
+    void Mixer::SetMasterVolume(float _volume) const {
+        if (!engine_) return;
+        ma_engine_set_volume(engine_, _volume);
+    }
 
 } // namespace Audio

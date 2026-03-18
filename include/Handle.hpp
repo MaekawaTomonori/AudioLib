@@ -15,9 +15,9 @@ namespace Audio {
         /** Load Handle
          * @param _path The file path to the audio file
          */
-        Handle(std::string_view _path);
+        explicit Handle(std::string_view _path);
 
-        PlaybackHandle Play(float _volume = 1.0f, float _pitch = 1.0f, bool _loop = false) const;
+        PlaybackHandle Play(const float& _volume = 1.f, const float& _pitch = 1.f, const bool& _loop = false) const;
 
         //void StopAll();
     };

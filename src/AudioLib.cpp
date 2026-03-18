@@ -11,4 +11,8 @@ namespace Audio {
         Internal::GetMixer()->Shutdown();
     }
 
+    void SetMasterVolume(float _volume) {
+        Internal::GetMixer()->SetMasterVolume(_volume);
+    }
+
 } // namespace Audio
