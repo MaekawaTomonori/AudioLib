@@ -17,7 +17,7 @@ namespace Audio {
          */
         explicit Handle(std::string_view _path);
 
-        PlaybackHandle Play(const float& _volume = 1.f, const float& _pitch = 1.f, const bool& _loop = false) const;
+        PlaybackHandle Play(const float& _volume = 1.f, const float& _pitch = 1.f, const float& _pan = 0.f, const bool& _loop = false) const;
 
         //void StopAll();
     };
