@@ -1,7 +1,6 @@
 #include "Mixer.hpp"
 
 #include <memory>
-#include <ranges>
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "vendor/miniaudio.h"
@@ -14,6 +13,14 @@ namespace Audio {
         ma_sound*           sound    = nullptr;
         float               volume   = 1.0f;
         bool                muted    = false;
+
+        ~PlaybackInstance() {
+            if (sound) {
+                ma_sound_uninit(sound);
+                delete sound;
+            }
+            ma_audio_buffer_ref_uninit(&bufferRef);
+        }
     };
 
 
@@ -34,12 +41,7 @@ namespace Audio {
     void Mixer::Shutdown() {
         if (!engine_) return;
 
-        for (auto& instance : sounds_ | std::views::values) {
-            ma_sound_uninit(instance->sound);
-            delete instance->sound;
-            ma_audio_buffer_ref_uninit(&instance->bufferRef);
-        }
-        sounds_.clear();
+        sounds_.clear(); // PlaybackInstance destructors handle ma_sound / ma_audio_buffer_ref cleanup
 
         ma_engine_uninit(engine_);
         delete engine_;
@@ -50,21 +52,31 @@ namespace Audio {
         if (!engine_) return 0;
         if (!_sound.IsValid()) return 0;
 
-        // Reuse a stopped instance of the same sound
+        // Extract a stopped instance of the same sound for reuse (before cleanup)
+        std::shared_ptr<PlaybackInstance> reused;
         for (auto it = sounds_.begin(); it != sounds_.end(); ++it) {
-            PlaybackInstance& instance = *it->second;
-            if (instance.soundId == _soundId && !ma_sound_is_playing(instance.sound)) {
-                ma_sound_seek_to_pcm_frame(instance.sound, 0);
-                ma_audio_buffer_ref_seek_to_pcm_frame(&instance.bufferRef, 0);
-                if (ma_sound_start(instance.sound) != MA_SUCCESS) break;
-                std::shared_ptr<PlaybackInstance> reused = std::move(it->second);
+            if (it->second->soundId == _soundId && !ma_sound_is_playing(it->second->sound)) {
+                reused = std::move(it->second);
                 sounds_.erase(it);
+                break;
+            }
+        }
+
+        // Remove all remaining stopped instances
+        Cleanup();
+
+        // Restart the reused instance if available
+        if (reused) {
+            ma_sound_seek_to_pcm_frame(reused->sound, 0);
+            ma_audio_buffer_ref_seek_to_pcm_frame(&reused->bufferRef, 0);
+            if (ma_sound_start(reused->sound) == MA_SUCCESS) {
                 const uint64_t id = nextId_++;
                 sounds_[id] = std::move(reused);
                 return id;
             }
         }
 
+        // Allocate a new instance
         auto instance = std::make_shared<PlaybackInstance>();
         instance->soundId = _soundId;
 
@@ -78,23 +90,24 @@ namespace Audio {
         }
 
         instance->sound = new ma_sound();
-        if (ma_sound_init_from_data_source(engine_, &instance->bufferRef, 0, nullptr, instance->sound) != MA_SUCCESS) {
-            ma_audio_buffer_ref_uninit(&instance->bufferRef);
-            delete instance->sound;
-            instance->sound = nullptr;
-            return 0;
-        }
-        if (ma_sound_start(instance->sound) != MA_SUCCESS) {
-            ma_sound_uninit(instance->sound);
-            delete instance->sound;
-            instance->sound = nullptr;
-            ma_audio_buffer_ref_uninit(&instance->bufferRef);
-            return 0;
+        if (ma_sound_init_from_data_source(engine_, &instance->bufferRef, 0, nullptr, instance->sound) != MA_SUCCESS
+            || ma_sound_start(instance->sound) != MA_SUCCESS) {
+            return 0; // destructor cleans up on shared_ptr release
         }
 
         const uint64_t id = nextId_++;
         sounds_[id] = std::move(instance);
         return id;
+    }
+
+    void Mixer::Cleanup() {
+        for (auto it = sounds_.begin(); it != sounds_.end(); ) {
+            if (!ma_sound_is_playing(it->second->sound)) {
+                it = sounds_.erase(it); // shared_ptr destructor handles resource cleanup
+            } else {
+                ++it;
+            }
+        }
     }
 
     bool Mixer::IsPlaying(uint64_t _id) const {
@@ -108,7 +121,7 @@ namespace Audio {
         if (it == sounds_.end()) return;
         ma_sound_stop(it->second->sound);
         ma_sound_seek_to_pcm_frame(it->second->sound, 0);
-        ma_audio_buffer_ref_seek_to_pcm_frame(&it->second->bufferRef, 0);
+        ma_audio_buffer_ref_seek_to_pcm_frame(&it->second->bufferRef, 0); // keep position in sync for potential reuse
     }
 
     void Mixer::Pause(uint64_t _id) {

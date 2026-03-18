@@ -35,6 +35,9 @@ namespace Audio {
         void SetPitch(uint64_t _id, float _pitch);
         void SetLoop(uint64_t _id, bool _loop);
         void SetMasterVolume(float _volume) const;
+
+    private:
+        void Cleanup();
     };
 
 } // namespace Audio
