@@ -31,4 +31,8 @@ namespace Audio {
         return handle;
     }
 
+    void Handle::StopAll() const {
+        Internal::GetMixer()->StopAll(handle_);
+    }
+
 } // namespace Handle

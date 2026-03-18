@@ -1,6 +1,7 @@
 #include "Mixer.hpp"
 
 #include <memory>
+#include <ranges>
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "vendor/miniaudio.h"
@@ -122,6 +123,16 @@ namespace Audio {
         ma_sound_stop(it->second->sound);
         ma_sound_seek_to_pcm_frame(it->second->sound, 0);
         ma_audio_buffer_ref_seek_to_pcm_frame(&it->second->bufferRef, 0); // keep position in sync for potential reuse
+    }
+
+    void Mixer::StopAll(uint64_t _soundId) {
+        for (auto& instance : sounds_ | std::views::values) {
+            if (instance->soundId == _soundId) {
+                ma_sound_stop(instance->sound);
+                ma_sound_seek_to_pcm_frame(instance->sound, 0);
+                ma_audio_buffer_ref_seek_to_pcm_frame(&instance->bufferRef, 0);
+            }
+        }
     }
 
     void Mixer::Pause(uint64_t _id) {

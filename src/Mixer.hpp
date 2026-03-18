@@ -27,6 +27,7 @@ namespace Audio {
         bool IsPlaying(uint64_t _id) const;
 
         void Stop(uint64_t _id);
+        void StopAll(uint64_t _soundId);
         void Pause(uint64_t _id);
         void Resume(uint64_t _id);
         void Mute(uint64_t _id, bool _mute);
