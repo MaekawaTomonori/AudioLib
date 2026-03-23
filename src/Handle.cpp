@@ -19,10 +19,10 @@ namespace Audio {
         handle_ = repository->Register(std::move(sound), _path);
     }
 
-    PlaybackHandle Handle::Play(const float& _volume, const float& _pitch, const float& _pan, const bool& _loop) const {
+    PlaybackHandle Handle::Play(const float& _volume, const float& _pitch, const float& _pan, const bool& _loop, const TrackHandle& _track) const {
         const Sound* sound = Internal::GetRepository()->Find(handle_);
         if (!sound || !sound->IsValid()) return {};
-        const uint64_t id = Internal::GetMixer()->Play(handle_, *sound);
+        const uint64_t id = Internal::GetMixer()->Play(handle_, *sound, _track.GetId());
         PlaybackHandle handle(id);
         handle.SetVolume(_volume);
         handle.SetPitch(_pitch);

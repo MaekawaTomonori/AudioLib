@@ -100,6 +100,7 @@
     <ClInclude Include="include\Handle.hpp" />
     <ClInclude Include="include\PlaybackHandle.hpp" />
     <ClInclude Include="include\AudioLib.hpp" />
+    <ClInclude Include="include\TrackHandle.hpp" />
     <ClInclude Include="src\Internal.hpp" />
     <ClInclude Include="src\Loader.hpp" />
     <ClInclude Include="src\Mixer.hpp" />
@@ -116,6 +117,7 @@
     <ClCompile Include="src\Mixer.cpp" />
     <ClCompile Include="src\Repository.cpp" />
     <ClCompile Include="src\Sound.cpp" />
+    <ClCompile Include="src\TrackHandle.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

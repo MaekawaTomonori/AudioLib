@@ -13,18 +13,22 @@ namespace Audio {
 
     class Mixer {
         struct PlaybackInstance;
+        struct TrackInstance;
 
         ma_engine* engine_ = nullptr;
         std::unordered_map<uint64_t, std::shared_ptr<PlaybackInstance>> sounds_;
-        uint64_t nextId_ = 1;
+        std::unordered_map<uint64_t, std::shared_ptr<TrackInstance>>    tracks_;
+        uint64_t nextId_      = 1;
+        uint64_t nextTrackId_ = 1;
 
     public:
         ~Mixer();
         bool Init();
         void Shutdown();
 
-        uint64_t Play(uint64_t _soundId, const Sound& _sound);
-        bool IsPlaying(uint64_t _id) const;
+        // --- Playback ---
+        uint64_t Play(uint64_t _soundId, const Sound& _sound, uint64_t _trackId = 0);
+        bool     IsPlaying(uint64_t _id) const;
 
         void Stop(uint64_t _id);
         void StopAll(uint64_t _soundId);
@@ -35,6 +39,16 @@ namespace Audio {
         void SetPan(uint64_t _id, float _pan);
         void SetPitch(uint64_t _id, float _pitch);
         void SetLoop(uint64_t _id, bool _loop);
+
+        // --- Track ---
+        uint64_t CreateTrack();
+        void     DestroyTrack(uint64_t _trackId);
+        void     StopAllInTrack(uint64_t _trackId);
+        void     SetTrackVolume(uint64_t _trackId, float _volume);
+        void     SetTrackPan(uint64_t _trackId, float _pan);
+        void     SetTrackPitch(uint64_t _trackId, float _pitch);
+
+        // --- Master ---
         void SetMasterVolume(float _volume) const;
 
     private:

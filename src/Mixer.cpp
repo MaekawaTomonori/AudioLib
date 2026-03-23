@@ -10,6 +10,7 @@ namespace Audio {
 
     struct Mixer::PlaybackInstance {
         uint64_t            soundId  = 0;
+        uint64_t            trackId  = 0;
         ma_audio_buffer_ref bufferRef{};
         ma_sound*           sound    = nullptr;
         float               volume   = 1.0f;
@@ -21,6 +22,17 @@ namespace Audio {
                 delete sound;
             }
             ma_audio_buffer_ref_uninit(&bufferRef);
+        }
+    };
+
+    struct Mixer::TrackInstance {
+        ma_sound_group* group = nullptr;
+
+        ~TrackInstance() {
+            if (group) {
+                ma_sound_group_uninit(group);
+                delete group;
+            }
         }
     };
 
@@ -42,16 +54,23 @@ namespace Audio {
     void Mixer::Shutdown() {
         if (!engine_) return;
 
-        sounds_.clear(); // PlaybackInstance destructors handle ma_sound / ma_audio_buffer_ref cleanup
+        sounds_.clear(); // sounds must be uninit before their groups
+        tracks_.clear(); // TrackInstance destructors handle ma_sound_group cleanup
 
         ma_engine_uninit(engine_);
         delete engine_;
         engine_ = nullptr;
     }
 
-    uint64_t Mixer::Play(uint64_t _soundId, const Sound& _sound) {
+    uint64_t Mixer::Play(uint64_t _soundId, const Sound& _sound, uint64_t _trackId) {
         if (!engine_) return 0;
         if (!_sound.IsValid()) return 0;
+
+        ma_sound_group* group = nullptr;
+        if (_trackId != 0) {
+            const auto it = tracks_.find(_trackId);
+            if (it != tracks_.end()) group = it->second->group;
+        }
 
         // Extract a stopped instance of the same sound for reuse (before cleanup)
         std::shared_ptr<PlaybackInstance> reused;
@@ -80,6 +99,7 @@ namespace Audio {
         // Allocate a new instance
         auto instance = std::make_shared<PlaybackInstance>();
         instance->soundId = _soundId;
+        instance->trackId = _trackId;
 
         if (ma_audio_buffer_ref_init(
                 ma_format_f32,
@@ -91,7 +111,7 @@ namespace Audio {
         }
 
         instance->sound = new ma_sound();
-        if (ma_sound_init_from_data_source(engine_, &instance->bufferRef, 0, nullptr, instance->sound) != MA_SUCCESS
+        if (ma_sound_init_from_data_source(engine_, &instance->bufferRef, 0, group, instance->sound) != MA_SUCCESS
             || ma_sound_start(instance->sound) != MA_SUCCESS) {
             return 0; // destructor cleans up on shared_ptr release
         }
@@ -179,6 +199,51 @@ namespace Audio {
         PlaybackInstance& instance = *it->second;
         instance.muted = _mute;
         ma_sound_set_volume(instance.sound, _mute ? 0.0f : instance.volume);
+    }
+
+    uint64_t Mixer::CreateTrack() {
+        if (!engine_) return 0;
+        auto track = std::make_shared<TrackInstance>();
+        track->group = new ma_sound_group();
+        if (ma_sound_group_init(engine_, 0, nullptr, track->group) != MA_SUCCESS) {
+            return 0;
+        }
+        const uint64_t id = nextTrackId_++;
+        tracks_[id] = std::move(track);
+        return id;
+    }
+
+    void Mixer::DestroyTrack(uint64_t _trackId) {
+        StopAllInTrack(_trackId);
+        tracks_.erase(_trackId);
+    }
+
+    void Mixer::StopAllInTrack(uint64_t _trackId) {
+        for (auto& instance : sounds_ | std::views::values) {
+            if (instance->trackId == _trackId) {
+                ma_sound_stop(instance->sound);
+                ma_sound_seek_to_pcm_frame(instance->sound, 0);
+                ma_audio_buffer_ref_seek_to_pcm_frame(&instance->bufferRef, 0);
+            }
+        }
+    }
+
+    void Mixer::SetTrackVolume(uint64_t _trackId, float _volume) {
+        const auto it = tracks_.find(_trackId);
+        if (it == tracks_.end()) return;
+        ma_sound_group_set_volume(it->second->group, _volume);
+    }
+
+    void Mixer::SetTrackPan(uint64_t _trackId, float _pan) {
+        const auto it = tracks_.find(_trackId);
+        if (it == tracks_.end()) return;
+        ma_sound_group_set_pan(it->second->group, _pan);
+    }
+
+    void Mixer::SetTrackPitch(uint64_t _trackId, float _pitch) {
+        const auto it = tracks_.find(_trackId);
+        if (it == tracks_.end()) return;
+        ma_sound_group_set_pitch(it->second->group, _pitch);
     }
 
     void Mixer::SetMasterVolume(float _volume) const {
