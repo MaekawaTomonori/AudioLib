@@ -6,7 +6,7 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "vendor/miniaudio.h"
 
-namespace Audio {
+namespace Audio::Internal {
 
     struct Mixer::PlaybackInstance {
         uint64_t            soundId  = 0;
@@ -251,4 +251,4 @@ namespace Audio {
         ma_engine_set_volume(engine_, _volume);
     }
 
-} // namespace Audio
+} // namespace Audio::Internal

@@ -14,13 +14,13 @@ namespace Audio {
         }
 
         // Load audio from file path
-        auto sound = Loader::Load(_path);
+        auto sound = Internal::Loader::Load(_path);
         // Register the sound to Repository and get a handle
         handle_ = repository->Register(std::move(sound), _path);
     }
 
     PlaybackHandle Handle::Play(const float& _volume, const float& _pitch, const float& _pan, const bool& _loop, const TrackHandle& _track) const {
-        const Sound* sound = Internal::GetRepository()->Find(handle_);
+        const auto* sound = Internal::GetRepository()->Find(handle_);
         if (!sound || !sound->IsValid()) return {};
         const uint64_t id = Internal::GetMixer()->Play(handle_, *sound, _track.GetId());
         PlaybackHandle handle(id);
@@ -35,4 +35,4 @@ namespace Audio {
         Internal::GetMixer()->StopAll(handle_);
     }
 
-} // namespace Handle
+} // namespace Audio

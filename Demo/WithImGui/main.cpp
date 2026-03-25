@@ -133,7 +133,7 @@ private:
     // --- Mixer helpers ---
     void DrawMasterStrip(float groupX);
     void DrawTrackStrip(Track& t, int idx, float groupX, bool& remove);
-    void DrawPlaybackList(Track& t);
+    void DrawPlaybackList(std::string_view name, ImVec4 headerColor, std::vector<PlayingItem>& items);
     void DrawDualVU(int seed, float volume, bool active, float stripWidth);
 
     // --- Actions ---
@@ -153,6 +153,8 @@ private:
     float playerPan_       = 0.0f;
     bool  playerLoop_      = false;
     float listPanelWidth_  = 390.f;  // Mixer right panel width (resizable)
+
+    std::vector<PlayingItem> masterItems_;  // Playbacks routed directly to Master (no Track)
 
     std::vector<LoadedSound> loadedSounds_;
     std::vector<Track>       tracks_;
@@ -269,19 +271,17 @@ void AudioDebugPanel::DrawPlayerWindow() {
     ImGui::Separator();
     ImGui::BeginDisabled(!hasSelection);
 
-    // --- Target Track selector ---
+    // --- Target Track selector (MASTER is always available as index -1) ---
     ImGui::SetNextItemWidth(260.f);
-    if (!hasTracks) {
-        ImGui::BeginDisabled(true);
-        ImGui::BeginCombo("Target Track", "-- No tracks (add one in Mixer) --");
-        // BeginCombo is always closed when disabled; EndCombo must NOT be called here
-        ImGui::EndDisabled();
-        targetTrack_ = -1;
-    } else {
-        if (targetTrack_ < 0 || targetTrack_ >= static_cast<int>(tracks_.size()))
-            targetTrack_ = 0;
-        const char* preview = tracks_[targetTrack_].name.c_str();
+    {
+        const char* preview = (targetTrack_ < 0) ? "MASTER"
+                                                  : tracks_[targetTrack_].name.c_str();
         if (ImGui::BeginCombo("Target Track", preview)) {
+            // MASTER option
+            if (ImGui::Selectable("MASTER", targetTrack_ < 0)) targetTrack_ = -1;
+            if (targetTrack_ < 0) ImGui::SetItemDefaultFocus();
+
+            // Track options
             for (int i = 0; i < static_cast<int>(tracks_.size()); ++i) {
                 const bool sel = (i == targetTrack_);
                 if (ImGui::Selectable(tracks_[i].name.c_str(), sel)) targetTrack_ = i;
@@ -316,24 +316,33 @@ void AudioDebugPanel::DrawPlayerWindow() {
     ImGui::SameLine(0, 12.f);
 
     // --- PLAY button ---
-    const bool canPlay = hasSelection && hasTracks && targetTrack_ >= 0;
+    const bool canPlay = hasSelection;   // MASTER is always a valid target
     ImGui::BeginDisabled(!canPlay);
     ImGui::PushStyleColor(ImGuiCol_Button,        DawStyle::kPlayActive);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.35f, 0.90f, 0.50f, 1.f });
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.12f, 0.50f, 0.22f, 1.f });
     if (ImGui::Button("  >  PLAY  ") && canPlay) {
         auto& sound = loadedSounds_[selectedSound_];
-        auto& track = tracks_[targetTrack_];
 
         PlayingItem item;
         item.soundName = sound.path;
-        item.playback  = sound.handle.Play(playerVolume_, playerPitch_, playerPan_, playerLoop_, track.handle);
         item.volume    = playerVolume_;
         item.pitch     = playerPitch_;
         item.pan       = playerPan_;
         item.loop      = playerLoop_;
-        track.items.push_back(std::move(item));
-        focusedTrack_  = targetTrack_;
+
+        if (targetTrack_ >= 0 && targetTrack_ < static_cast<int>(tracks_.size())) {
+            // Route through the selected Track
+            auto& track   = tracks_[targetTrack_];
+            item.playback = sound.handle.Play(playerVolume_, playerPitch_, playerPan_, playerLoop_, track.handle);
+            track.items.push_back(std::move(item));
+            focusedTrack_ = targetTrack_;
+        } else {
+            // Route directly to Master (no TrackHandle → trackId == 0)
+            item.playback = sound.handle.Play(playerVolume_, playerPitch_, playerPan_, playerLoop_);
+            masterItems_.push_back(std::move(item));
+            focusedTrack_ = -1;   // show Master playback list on the right
+        }
     }
     ImGui::PopStyleColor(3);
     ImGui::EndDisabled();
@@ -416,12 +425,12 @@ void AudioDebugPanel::DrawMixerWindow() {
     // === Right: Playback list ===
     ImGui::BeginChild("##PlaybackPanel", { listPanelWidth_, 0.f }, false,
         ImGuiWindowFlags_HorizontalScrollbar);
-    if (focusedTrack_ >= 0 && focusedTrack_ < static_cast<int>(tracks_.size()))
-        DrawPlaybackList(tracks_[focusedTrack_]);
-    else {
-        ImGui::PushStyleColor(ImGuiCol_Text, DawStyle::kTextDim);
-        ImGui::TextUnformatted("Click a track header to view its playbacks");
-        ImGui::PopStyleColor();
+    if (focusedTrack_ >= 0 && focusedTrack_ < static_cast<int>(tracks_.size())) {
+        auto& t = tracks_[focusedTrack_];
+        DrawPlaybackList(t.name, DawStyle::kChannelColors[t.colorIdx], t.items);
+    } else {
+        // focusedTrack_ == -1 → show Master playbacks
+        DrawPlaybackList("MASTER", { 0.75f, 0.75f, 0.75f, 1.f }, masterItems_);
     }
     ImGui::EndChild();
 
@@ -446,23 +455,38 @@ void AudioDebugPanel::DrawDualVU(int seed, float volume, bool active, float stri
 
 // ----------------------------------------------------------------
 void AudioDebugPanel::DrawMasterStrip(float groupX) {
+    // Auto-remove finished master playbacks each frame
+    masterItems_.erase(std::remove_if(masterItems_.begin(), masterItems_.end(),
+        [](const PlayingItem& item) { return !item.playback.IsPlaying() && !item.paused; }),
+        masterItems_.end());
+
     bool anyActive = false;
-    for (auto& t : tracks_)
-        for (auto& item : t.items)
-            if (item.playback.IsPlaying() && !item.paused) { anyActive = true; break; }
+    for (auto& item : masterItems_)
+        if (item.playback.IsPlaying() && !item.paused) { anyActive = true; break; }
+    if (!anyActive) {
+        for (auto& t : tracks_)
+            for (auto& item : t.items)
+                if (item.playback.IsPlaying() && !item.paused) { anyActive = true; break; }
+    }
+
+    const bool focused = (focusedTrack_ < 0);
 
     ImGui::BeginGroup();
 
-    // Header
+    // Header (click to focus Master in the right panel)
     {
         ImDrawList* dl  = ImGui::GetWindowDrawList();
         ImVec2      pos = ImGui::GetCursorScreenPos();
         float w = DawStyle::kMasterWidth, h = DawStyle::kHeaderHeight;
-        dl->AddRectFilled(pos, { pos.x + w, pos.y + h }, IM_COL32(70, 70, 70, 255), 4.f, ImDrawFlags_RoundCornersTop);
+        const ImU32 hdrCol = focused ? IM_COL32(110, 110, 110, 255) : IM_COL32(70, 70, 70, 255);
+        dl->AddRectFilled(pos, { pos.x + w, pos.y + h }, hdrCol, 4.f, ImDrawFlags_RoundCornersTop);
+        if (focused)
+            dl->AddCircleFilled({ pos.x + 8.f, pos.y + h * 0.5f }, 3.f, IM_COL32(255, 255, 255, 210));
         const char* lbl = "MASTER";
         ImVec2 tsz = ImGui::CalcTextSize(lbl);
         dl->AddText({ pos.x + (w - tsz.x) * 0.5f, pos.y + (h - tsz.y) * 0.5f }, IM_COL32(230, 230, 230, 255), lbl);
-        ImGui::Dummy({ w, h });
+        ImGui::InvisibleButton("##master_hdr", { w, h });
+        if (ImGui::IsItemClicked()) focusedTrack_ = -1;
     }
 
     // LED
@@ -631,21 +655,20 @@ void AudioDebugPanel::DrawTrackStrip(Track& t, int idx, float groupX, bool& remo
 // ----------------------------------------------------------------
 //  Playback list for the focused track
 // ----------------------------------------------------------------
-void AudioDebugPanel::DrawPlaybackList(Track& t) {
+void AudioDebugPanel::DrawPlaybackList(std::string_view name, ImVec4 headerColor, std::vector<PlayingItem>& items) {
     // Header
     {
-        const ImVec4& col = DawStyle::kChannelColors[t.colorIdx];
-        ImGui::PushStyleColor(ImGuiCol_Text, col);
-        ImGui::Text("%s", t.name.c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, headerColor);
+        ImGui::TextUnformatted(name.data());
         ImGui::PopStyleColor();
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, DawStyle::kTextDim);
-        ImGui::Text("(%d active)", static_cast<int>(t.items.size()));
+        ImGui::Text("(%d active)", static_cast<int>(items.size()));
         ImGui::PopStyleColor();
     }
     ImGui::Separator();
 
-    if (t.items.empty()) {
+    if (items.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, DawStyle::kTextDim);
         ImGui::TextUnformatted("No active playbacks");
         ImGui::PopStyleColor();
@@ -667,8 +690,8 @@ void AudioDebugPanel::DrawPlaybackList(Track& t) {
     ImGui::TableSetupColumn("##led",  ImGuiTableColumnFlags_WidthFixed, 14.f);
     ImGui::TableHeadersRow();
 
-    for (int i = 0; i < static_cast<int>(t.items.size()); ++i) {
-        PlayingItem& item    = t.items[i];
+    for (int i = 0; i < static_cast<int>(items.size()); ++i) {
+        PlayingItem& item    = items[i];
         const bool   playing = item.playback.IsPlaying();
 
         ImGui::PushID(i);

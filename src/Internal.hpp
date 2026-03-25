@@ -4,12 +4,10 @@
 #include "Repository.hpp"
 #include "Loader.hpp"
 
-namespace Audio {
-    namespace Internal {
+namespace Audio::Internal {
 
-        Repository* GetRepository();
-        Mixer* GetMixer();
+    Repository* GetRepository();
+    Mixer*      GetMixer();
 
-    }; // namespace Internal
-} // namespace Handle
+} // namespace Audio::Internal
 #endif // Internal_HPP_

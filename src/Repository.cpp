@@ -1,6 +1,6 @@
 #include "Repository.hpp"
 
-namespace Audio {
+namespace Audio::Internal {
 
     uint64_t Repository::Register(std::unique_ptr<Sound> _data, std::string_view _name) {
         // 同名が既に登録済みなら既存の id を返す
@@ -37,4 +37,4 @@ namespace Audio {
         return {};
     }
 
-} // namespace Audio
+} // namespace Audio::Internal

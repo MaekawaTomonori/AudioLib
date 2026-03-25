@@ -5,7 +5,7 @@
 
 #include "vendor/miniaudio.h"
 
-namespace Audio::Loader {
+namespace Audio::Internal::Loader {
 
     namespace {
         constexpr ma_uint32 kOutputChannels  = 2;
@@ -33,4 +33,4 @@ namespace Audio::Loader {
         return std::make_unique<Sound>(std::move(pcm), kOutputSampleRate, kOutputChannels, frameCount);
     }
 
-} // namespace Audio::Loader
+} // namespace Audio::Internal::Loader

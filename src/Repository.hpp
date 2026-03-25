@@ -8,7 +8,7 @@
 
 #include "Sound.hpp"
 
-namespace Audio {
+namespace Audio::Internal {
 
     class Repository {
         std::unordered_map<uint64_t, std::unique_ptr<Sound>> data_;
@@ -32,6 +32,6 @@ namespace Audio {
         std::string_view FindName(uint64_t _id) const;
     };
 
-} // namespace Handle
+} // namespace Audio::Internal
 
 #endif // Repository_HPP_

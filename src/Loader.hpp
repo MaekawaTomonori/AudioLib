@@ -6,8 +6,8 @@
 #include "Sound.hpp"
 
 
-namespace Audio::Loader {
+namespace Audio::Internal::Loader {
     std::unique_ptr<Sound> Load(std::string_view _path);
-} // namespace Handle::Loader
+} // namespace Audio::Internal::Loader
 
 #endif // Loader_HPP_

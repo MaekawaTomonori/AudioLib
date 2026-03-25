@@ -9,7 +9,7 @@
 
 struct ma_engine;
 
-namespace Audio {
+namespace Audio::Internal {
 
     class Mixer {
         struct PlaybackInstance;
@@ -26,7 +26,6 @@ namespace Audio {
         bool Init();
         void Shutdown();
 
-        // --- Playback ---
         uint64_t Play(uint64_t _soundId, const Sound& _sound, uint64_t _trackId = 0);
         bool     IsPlaying(uint64_t _id) const;
 
@@ -55,6 +54,6 @@ namespace Audio {
         void Cleanup();
     };
 
-} // namespace Audio
+} // namespace Audio::Internal
 
 #endif // Mixer_HPP_
