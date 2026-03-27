@@ -26,10 +26,13 @@ namespace Audio::Internal {
         bool         Contains(std::string_view _name) const;
 
         // 名前から id を取得する（未登録の場合は 0）
-        uint64_t         FindId(std::string_view _name) const;
+        uint64_t     FindId(std::string_view _name) const;
 
         // id から名前を取得する（未登録の場合は空文字列）
-        std::string_view FindName(uint64_t _id) const;
+        std::string  FindName(uint64_t _id) const;
+
+        // 全リソースを解放し、初期状態に戻す
+        void         Clear();
     };
 
 } // namespace Audio::Internal

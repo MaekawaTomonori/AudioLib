@@ -9,12 +9,15 @@
 namespace Audio::Internal {
 
     struct Mixer::PlaybackInstance {
+        enum class State { Playing, Paused, Stopped };
+
         uint64_t            soundId  = 0;
         uint64_t            trackId  = 0;
         ma_audio_buffer_ref bufferRef{};
         ma_sound*           sound    = nullptr;
         float               volume   = 1.0f;
         bool                muted    = false;
+        State               state    = State::Playing;
 
         ~PlaybackInstance() {
             if (sound) {
@@ -42,6 +45,7 @@ namespace Audio::Internal {
     }
 
     bool Mixer::Init() {
+        if (engine_) return true;
         engine_ = new ma_engine();
         if (ma_engine_init(nullptr, engine_) != MA_SUCCESS) {
             delete engine_;
@@ -75,7 +79,7 @@ namespace Audio::Internal {
         // Extract a stopped instance of the same sound for reuse (before cleanup)
         std::shared_ptr<PlaybackInstance> reused;
         for (auto it = sounds_.begin(); it != sounds_.end(); ++it) {
-            if (it->second->soundId == _soundId && !ma_sound_is_playing(it->second->sound)) {
+            if (it->second->soundId == _soundId && it->second->state == PlaybackInstance::State::Stopped) {
                 reused = std::move(it->second);
                 sounds_.erase(it);
                 break;
@@ -90,6 +94,7 @@ namespace Audio::Internal {
             ma_sound_seek_to_pcm_frame(reused->sound, 0);
             ma_audio_buffer_ref_seek_to_pcm_frame(&reused->bufferRef, 0);
             if (ma_sound_start(reused->sound) == MA_SUCCESS) {
+                reused->state = PlaybackInstance::State::Playing;
                 const uint64_t id = nextId_++;
                 sounds_[id] = std::move(reused);
                 return id;
@@ -123,7 +128,7 @@ namespace Audio::Internal {
 
     void Mixer::Cleanup() {
         for (auto it = sounds_.begin(); it != sounds_.end(); ) {
-            if (!ma_sound_is_playing(it->second->sound)) {
+            if (it->second->state == PlaybackInstance::State::Stopped) {
                 it = sounds_.erase(it); // shared_ptr destructor handles resource cleanup
             } else {
                 ++it;
@@ -143,6 +148,7 @@ namespace Audio::Internal {
         ma_sound_stop(it->second->sound);
         ma_sound_seek_to_pcm_frame(it->second->sound, 0);
         ma_audio_buffer_ref_seek_to_pcm_frame(&it->second->bufferRef, 0); // keep position in sync for potential reuse
+        it->second->state = PlaybackInstance::State::Stopped;
     }
 
     void Mixer::StopAll(uint64_t _soundId) {
@@ -151,6 +157,7 @@ namespace Audio::Internal {
                 ma_sound_stop(instance->sound);
                 ma_sound_seek_to_pcm_frame(instance->sound, 0);
                 ma_audio_buffer_ref_seek_to_pcm_frame(&instance->bufferRef, 0);
+                instance->state = PlaybackInstance::State::Stopped;
             }
         }
     }
@@ -159,12 +166,15 @@ namespace Audio::Internal {
         const auto it = sounds_.find(_id);
         if (it == sounds_.end()) return;
         ma_sound_stop(it->second->sound);
+        it->second->state = PlaybackInstance::State::Paused;
     }
 
     void Mixer::Resume(uint64_t _id) {
         const auto it = sounds_.find(_id);
         if (it == sounds_.end()) return;
+        if (it->second->state != PlaybackInstance::State::Paused) return;
         ma_sound_start(it->second->sound);
+        it->second->state = PlaybackInstance::State::Playing;
     }
 
     void Mixer::SetVolume(uint64_t _id, float _volume) {
@@ -214,7 +224,15 @@ namespace Audio::Internal {
     }
 
     void Mixer::DestroyTrack(uint64_t _trackId) {
-        StopAllInTrack(_trackId);
+        // Remove all playback instances belonging to this track before destroying the group.
+        // This ensures ma_sound is uninit before ma_sound_group_uninit (called by TrackInstance dtor).
+        for (auto it = sounds_.begin(); it != sounds_.end(); ) {
+            if (it->second->trackId == _trackId) {
+                it = sounds_.erase(it);
+            } else {
+                ++it;
+            }
+        }
         tracks_.erase(_trackId);
     }
 
@@ -224,6 +242,7 @@ namespace Audio::Internal {
                 ma_sound_stop(instance->sound);
                 ma_sound_seek_to_pcm_frame(instance->sound, 0);
                 ma_audio_buffer_ref_seek_to_pcm_frame(&instance->bufferRef, 0);
+                instance->state = PlaybackInstance::State::Stopped;
             }
         }
     }

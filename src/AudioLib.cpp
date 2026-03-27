@@ -1,15 +1,25 @@
 #include "include/AudioLib.hpp"
+
+#include <mutex>
+
 #include "include/TrackHandle.hpp"
 #include "src/Internal.hpp"
 
+namespace {
+    std::once_flag flag;
+}
+
 namespace Audio {
 
-    void Initialize() {
-        Internal::GetMixer()->Init();
+    bool Initialize() {
+        bool result = true;
+        std::call_once(flag, [&result] { result = Internal::GetMixer()->Init(); });
+        return result;
     }
 
     void Shutdown() {
         Internal::GetMixer()->Shutdown();
+        Internal::GetRepository()->Clear();
     }
 
     void SetMasterVolume(float _volume) {

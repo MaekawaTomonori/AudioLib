@@ -5,10 +5,12 @@
 
 namespace Audio {
 
-    /** Initialize the audio system. Must be called before any other Audio function */
-    void Initialize();
+    /** Initialize the audio system. Must be called before any other Audio function.
+     * @return true on success, false if the audio device could not be opened
+     */
+    bool Initialize();
 
-    /** Shut down the audio system and release all audio resources */
+    /** Shut down the audio system and release all audio resources including loaded sounds */
     void Shutdown();
 
     /** Set the master output volume, applied to all tracks and playbacks

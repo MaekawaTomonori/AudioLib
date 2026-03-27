@@ -30,11 +30,17 @@ namespace Audio::Internal {
         return it != nameToId_.end() ? it->second : 0;
     }
 
-    std::string_view Repository::FindName(uint64_t _id) const {
+    std::string Repository::FindName(uint64_t _id) const {
         for (const auto& [name, id] : nameToId_) {
             if (id == _id) return name;
         }
         return {};
+    }
+
+    void Repository::Clear() {
+        data_.clear();
+        nameToId_.clear();
+        nextId_ = 1;
     }
 
 } // namespace Audio::Internal

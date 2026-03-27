@@ -1021,10 +1021,15 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
     ApplyDawStyle();
 
     ImGui_ImplWin32_Init(g_hwnd);
-    ImGui_ImplDX12_Init(g_device.Get(), kFrameCount,
-        DXGI_FORMAT_R8G8B8A8_UNORM, g_srvHeap.Get(),
-        g_srvHeap->GetCPUDescriptorHandleForHeapStart(),
-        g_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    ImGui_ImplDX12_InitInfo dx12InitInfo;
+    dx12InitInfo.Device            = g_device.Get();
+    dx12InitInfo.CommandQueue      = g_cmdQueue.Get();
+    dx12InitInfo.NumFramesInFlight = kFrameCount;
+    dx12InitInfo.RTVFormat         = DXGI_FORMAT_R8G8B8A8_UNORM;
+    dx12InitInfo.SrvDescriptorHeap = g_srvHeap.Get();
+    dx12InitInfo.LegacySingleSrvCpuDescriptor = g_srvHeap->GetCPUDescriptorHandleForHeapStart();
+    dx12InitInfo.LegacySingleSrvGpuDescriptor = g_srvHeap->GetGPUDescriptorHandleForHeapStart();
+    ImGui_ImplDX12_Init(&dx12InitInfo);
 
     Audio::Initialize();
 
