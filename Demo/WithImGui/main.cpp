@@ -17,6 +17,9 @@
 
 #include "AudioLib.hpp"
 
+#include <commdlg.h>
+#include <filesystem>
+
 #undef min
 #undef max
 
@@ -95,6 +98,15 @@ public:
     void Draw();
 
 private:
+    // --- File entry scanned from ./audio ---
+    struct AudioFile {
+        std::string name;  // filename only
+        std::string path;  // full relative path
+    };
+
+    // --- Load status for UI icons ---
+    enum class LoadStatus { NotLoaded, Loading, Loaded, Failed };
+
     // --- Loaded audio asset ---
     struct LoadedSound {
         std::string   path;
@@ -130,6 +142,12 @@ private:
     void DrawPlayerWindow();
     void DrawMixerWindow();
 
+    // --- Loader helpers ---
+    void        RefreshAudioFiles();
+    int         FindLoadedIndex(const std::string& _path) const;
+    void        LoadFile(const std::string& _path);
+    LoadStatus  GetLoadStatus(const std::string& _path) const;
+
     // --- Mixer helpers ---
     void DrawMasterStrip(float groupX);
     void DrawTrackStrip(Track& t, int idx, float groupX, bool& remove);
@@ -141,7 +159,9 @@ private:
     void RemoveTrack(int idx);
 
     // --- State ---
-    char  pathBuf_[256]  = "fx.wav";
+    std::vector<AudioFile>   audioFiles_;
+    std::string              audioDir_      = "./audio";
+    bool                     filesScanned_  = false;
     float masterVolume_  = 1.0f;
     int   nextColorIdx_  = 0;
     int   selectedSound_ = -1;
@@ -190,56 +210,219 @@ void AudioDebugPanel::RemoveTrack(int idx) {
 }
 
 // ================================================================
+//  Loader helpers
+// ================================================================
+extern HWND g_hwnd; // defined with the other DX12 globals below
+
+// Returns the parent directory of a file path chosen via GetOpenFileNameA.
+// No COM initialization required.
+static std::string BrowseForAudioFolder(HWND hwnd, const std::string& currentDir) {
+    char path[MAX_PATH] = {};
+    // Seed the dialog at the current directory by pre-filling a dummy filename.
+    const std::string seed = currentDir + "\\*";
+    strncpy_s(path, MAX_PATH, seed.c_str(), _TRUNCATE);
+
+    OPENFILENAMEA ofn  = {};
+    ofn.lStructSize    = sizeof(ofn);
+    ofn.hwndOwner      = hwnd;
+    ofn.lpstrFile      = path;
+    ofn.nMaxFile       = MAX_PATH;
+    ofn.lpstrFilter    = "Audio Files\0*.wav;*.mp3\0All Files\0*.*\0";
+    ofn.lpstrTitle     = "Select a folder  (open any file inside it)";
+    ofn.Flags          = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+
+    if (!GetOpenFileNameA(&ofn)) return {};   // user cancelled
+
+    // Strip filename to get the directory.
+    std::string result(path);
+    const auto  slash = result.find_last_of("/\\");
+    return (slash != std::string::npos) ? result.substr(0, slash) : result;
+}
+
+void AudioDebugPanel::RefreshAudioFiles() {
+    audioFiles_.clear();
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(audioDir_, ec)) {
+        if (ec || !entry.is_regular_file()) continue;
+        auto ext = entry.path().extension().string();
+        for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (ext != ".wav" && ext != ".mp3") continue;
+        audioFiles_.push_back({
+            entry.path().filename().string(),
+            entry.path().string()
+        });
+    }
+    std::sort(audioFiles_.begin(), audioFiles_.end(),
+              [](const AudioFile& a, const AudioFile& b) { return a.name < b.name; });
+}
+
+int AudioDebugPanel::FindLoadedIndex(const std::string& _path) const {
+    for (int i = 0; i < static_cast<int>(loadedSounds_.size()); ++i)
+        if (loadedSounds_[i].path == _path) return i;
+    return -1;
+}
+
+void AudioDebugPanel::LoadFile(const std::string& _path) {
+    if (FindLoadedIndex(_path) >= 0) return;
+    Audio::Handle h;
+    h.Load(_path);
+    loadedSounds_.push_back({ _path, std::move(h), nextColorIdx_ });
+    nextColorIdx_ = (nextColorIdx_ + 1) % DawStyle::kColorCount;
+}
+
+AudioDebugPanel::LoadStatus AudioDebugPanel::GetLoadStatus(const std::string& _path) const {
+    const int idx = FindLoadedIndex(_path);
+    if (idx < 0) return LoadStatus::NotLoaded;
+    const auto& h = loadedSounds_[idx].handle;
+    if (!h.IsReady()) return LoadStatus::Loading;
+    return h.IsValid() ? LoadStatus::Loaded : LoadStatus::Failed;
+}
+
+// ================================================================
 //  Track Loader window
 // ================================================================
 void AudioDebugPanel::DrawLoaderWindow() {
-    ImGui::SetNextWindowSize({ 400.f, 210.f }, ImGuiCond_FirstUseEver);
+    if (!filesScanned_) { RefreshAudioFiles(); filesScanned_ = true; }
+
+    ImGui::SetNextWindowSize({ 400.f, 300.f }, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos({  10.f,  10.f  }, ImGuiCond_FirstUseEver);
     ImGui::Begin("Track Loader");
 
-    ImGui::SetNextItemWidth(220.f);
-    ImGui::InputText("##path", pathBuf_, sizeof(pathBuf_));
-    ImGui::SameLine(0, 6.f);
+    // --- Header: folder path + browse + refresh ---
+    {
+        // Show the last path component; full path on tooltip.
+        namespace fs = std::filesystem;
+        const std::string dirLabel = fs::path(audioDir_).filename().string();
+        const std::string display  = dirLabel.empty() ? audioDir_ : dirLabel;
 
-    ImGui::PushStyleColor(ImGuiCol_Button,        { 0.18f, 0.42f, 0.18f, 1.f });
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.24f, 0.55f, 0.24f, 1.f });
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.12f, 0.30f, 0.12f, 1.f });
-    if (ImGui::Button("Load") && pathBuf_[0] != '\0') {
-        loadedSounds_.push_back({ pathBuf_, Audio::Handle(pathBuf_), nextColorIdx_ });
-        nextColorIdx_  = (nextColorIdx_ + 1) % DawStyle::kColorCount;
-        selectedSound_ = static_cast<int>(loadedSounds_.size()) - 1;
+        ImGui::PushStyleColor(ImGuiCol_Text, DawStyle::kTextDim);
+        ImGui::TextUnformatted(display.c_str());
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", audioDir_.c_str());
+
+        ImGui::SameLine(0, 4.f);
+        if (ImGui::SmallButton("...")) {
+            const std::string chosen = BrowseForAudioFolder(g_hwnd, audioDir_);
+            if (!chosen.empty()) {
+                audioDir_ = chosen;
+                RefreshAudioFiles();
+            }
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Browse — open any audio file inside the target folder");
+
+        ImGui::SameLine(0, 6.f);
+        if (ImGui::SmallButton("Refresh")) RefreshAudioFiles();
     }
-    ImGui::PopStyleColor(3);
+
+    // Loaded count
+    int loadedCount = 0;
+    for (auto& af : audioFiles_)
+        if (GetLoadStatus(af.path) == LoadStatus::Loaded) ++loadedCount;
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, DawStyle::kTextDim);
+    ImGui::Text("  %d / %d loaded", loadedCount, static_cast<int>(audioFiles_.size()));
+    ImGui::PopStyleColor();
 
     ImGui::Separator();
 
-    ImGui::BeginChild("##SoundList", { 0.f, 0.f }, false);
-    int removeIdx = -1;
-    for (int i = 0; i < static_cast<int>(loadedSounds_.size()); ++i) {
+    // --- File list ---
+    ImGui::BeginChild("##FileList", { 0.f, -30.f }, false);
+
+    if (audioFiles_.empty()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, DawStyle::kTextDim);
+        ImGui::TextUnformatted("No .wav / .mp3 files found in ./audio/");
+        ImGui::PopStyleColor();
+    }
+
+    for (int i = 0; i < static_cast<int>(audioFiles_.size()); ++i) {
+        auto& af             = audioFiles_[i];
+        const LoadStatus     status   = GetLoadStatus(af.path);
+        const int            loadIdx  = FindLoadedIndex(af.path);
+        const bool           selected = (loadIdx >= 0 && loadIdx == selectedSound_);
+
         ImGui::PushID(i);
-        const ImVec4& col = DawStyle::kChannelColors[loadedSounds_[i].colorIdx];
-        ImGui::PushStyleColor(ImGuiCol_Header,        col);
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { col.x + 0.1f, col.y + 0.1f, col.z + 0.1f, 1.f });
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive,  { col.x - 0.1f, col.y - 0.1f, col.z - 0.1f, 1.f });
-        const bool selected = (selectedSound_ == i);
-        if (ImGui::Selectable(loadedSounds_[i].path.c_str(), selected,
-            ImGuiSelectableFlags_None, { ImGui::GetContentRegionAvail().x - 30.f, 0.f }))
-            selectedSound_ = i;
+
+        // Status circle
+        {
+            ImDrawList* dl  = ImGui::GetWindowDrawList();
+            ImVec2      pos = ImGui::GetCursorScreenPos();
+            const float r   = 5.f;
+            ImVec2      ctr = { pos.x + r + 2.f, pos.y + ImGui::GetTextLineHeight() * 0.5f };
+
+            ImU32 col;
+            if (status == LoadStatus::Loading) {
+                const float p = 0.5f + 0.5f * sinf(static_cast<float>(ImGui::GetTime()) * 5.f);
+                col = IM_COL32(static_cast<int>(80 + 170 * p),
+                               static_cast<int>(65 + 130 * p), 18, 255);
+            } else if (status == LoadStatus::Loaded) {
+                col = IM_COL32(48, 210, 72, 255);
+            } else if (status == LoadStatus::Failed) {
+                col = IM_COL32(200, 55, 55, 255);
+            } else {
+                col = IM_COL32(65, 65, 65, 255);
+            }
+            dl->AddCircleFilled(ctr, r, col);
+            dl->AddCircle(ctr, r, IM_COL32(0, 0, 0, 120), 12, 1.f);
+            ImGui::Dummy({ r * 2.f + 6.f, ImGui::GetTextLineHeight() });
+        }
+        ImGui::SameLine(0, 2.f);
+
+        // Filename row
+        const bool canSelect = (status == LoadStatus::Loaded);
+        const float rowW = ImGui::GetContentRegionAvail().x
+                         - (status == LoadStatus::NotLoaded ? 46.f : 0.f);
+
+        ImVec4 textCol = (status == LoadStatus::NotLoaded) ? DawStyle::kTextDim
+                       : (status == LoadStatus::Loading)    ? ImVec4{ 0.84f, 0.72f, 0.12f, 1.f }
+                       : (status == LoadStatus::Failed)     ? ImVec4{ 0.80f, 0.24f, 0.24f, 1.f }
+                       :                                      ImVec4{ 0.88f, 0.88f, 0.88f, 1.f };
+        ImGui::PushStyleColor(ImGuiCol_Text,         textCol);
+        ImGui::PushStyleColor(ImGuiCol_Header,        { 0.22f, 0.38f, 0.22f, 0.6f });
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0.28f, 0.48f, 0.28f, 0.7f });
+        if (ImGui::Selectable(af.name.c_str(), selected, 0, { rowW, 0.f }) && canSelect)
+            selectedSound_ = loadIdx;
         ImGui::PopStyleColor(3);
-        ImGui::SameLine(0, 4.f);
-        ImGui::PushStyleColor(ImGuiCol_Button,        { 0.35f, 0.14f, 0.14f, 1.f });
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.55f, 0.18f, 0.18f, 1.f });
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.22f, 0.08f, 0.08f, 1.f });
-        if (ImGui::SmallButton(" x ")) removeIdx = i;
-        ImGui::PopStyleColor(3);
+
+        // Tooltip: full path + status text
+        if (ImGui::IsItemHovered()) {
+            const char* statusStr = (status == LoadStatus::NotLoaded) ? "Not loaded"
+                                  : (status == LoadStatus::Loading)    ? "Loading..."
+                                  : (status == LoadStatus::Loaded)     ? "Loaded"
+                                  :                                       "Failed";
+            ImGui::SetTooltip("%s\n%s", af.path.c_str(), statusStr);
+        }
+
+        // [Load] button for unloaded files
+        if (status == LoadStatus::NotLoaded) {
+            ImGui::SameLine(0, 4.f);
+            ImGui::PushStyleColor(ImGuiCol_Button,        { 0.18f, 0.35f, 0.18f, 1.f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.24f, 0.48f, 0.24f, 1.f });
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.12f, 0.22f, 0.12f, 1.f });
+            if (ImGui::SmallButton("Load")) LoadFile(af.path);
+            ImGui::PopStyleColor(3);
+        }
+
         ImGui::PopID();
     }
-    if (removeIdx >= 0) {
-        loadedSounds_.erase(loadedSounds_.begin() + removeIdx);
-        if (selectedSound_ == removeIdx)      selectedSound_ = -1;
-        else if (selectedSound_ > removeIdx)  --selectedSound_;
-    }
     ImGui::EndChild();
+
+    // --- Load All Unloaded ---
+    const bool anyUnloaded = std::any_of(audioFiles_.begin(), audioFiles_.end(),
+        [this](const AudioFile& af) { return GetLoadStatus(af.path) == LoadStatus::NotLoaded; });
+
+    ImGui::BeginDisabled(!anyUnloaded);
+    ImGui::PushStyleColor(ImGuiCol_Button,        { 0.18f, 0.42f, 0.18f, 1.f });
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0.24f, 0.55f, 0.24f, 1.f });
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  { 0.12f, 0.30f, 0.12f, 1.f });
+    if (ImGui::Button("Load All Unloaded", { ImGui::GetContentRegionAvail().x, 0.f })) {
+        for (auto& af : audioFiles_)
+            if (GetLoadStatus(af.path) == LoadStatus::NotLoaded) LoadFile(af.path);
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::EndDisabled();
+
     ImGui::End();
 }
 
@@ -853,7 +1036,7 @@ static UINT64                            g_fenceValues[kFrameCount] = {};
 static UINT64                            g_fenceSignaled = 0;
 static UINT                              g_rtvDescSize   = 0;
 static UINT                              g_frameIndex    = 0;
-static HWND                              g_hwnd          = nullptr;
+HWND                                     g_hwnd          = nullptr;
 
 // ----------------------------------------------------------------
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
