@@ -18,6 +18,7 @@ namespace Audio {
     }
 
     void Shutdown() {
+        Internal::GetDispatcher()->Shutdown(); // in-flight ロードの完了を待ってから解放
         Internal::GetMixer()->Shutdown();
         Internal::GetRepository()->Clear();
     }
