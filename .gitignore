@@ -1,5 +1,7 @@
 ﻿.claude/
 .vs/
 out/
-Sample/.vs/
-Sample/out/
+Demo/Console/.vs/
+Demo/Console/out/
+Demo/WithImGui/out/
+Demo/WithImGui/.vs/

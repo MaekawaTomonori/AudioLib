@@ -29,6 +29,38 @@ Complexity should only be introduced when it clearly improves usability, perform
 Do not implement speculative features.  
 Only implement functionality that is actually required.
 
+## OCP (Open/Closed Principle)
+
+The public API is the contract with the library user.
+
+Public interfaces must remain open for use but closed for modification.
+
+Do not break existing public API behavior when extending functionality.
+
+New features must be added without changing existing public interfaces.
+
+Internal implementation may change freely as long as the public contract is preserved.
+
+When in doubt, ask: does this change affect what the library user sees?
+
+If yes, treat it as a breaking change and handle with care.
+
+## Role-Based Private Functions
+
+Private functions must be organized by role so that behavior can be understood at a glance.
+
+Group private functions under comments that clearly describe their role.
+
+Examples:
+
+// --- Playback Control ---
+// --- State Management ---
+// --- Resource Lookup ---
+
+A reader should be able to scan the private section and immediately understand what each group is responsible for without reading the implementation.
+
+Avoid mixing unrelated operations in a single private function.
+
 ## SRP (Single Responsibility Principle)
 
 Each class should have a single responsibility.

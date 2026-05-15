@@ -100,7 +100,9 @@
     <ClInclude Include="include\Handle.hpp" />
     <ClInclude Include="include\PlaybackHandle.hpp" />
     <ClInclude Include="include\AudioLib.hpp" />
+    <ClInclude Include="include\TrackHandle.hpp" />
     <ClInclude Include="src\Internal.hpp" />
+    <ClInclude Include="src\LoadDispatcher.hpp" />
     <ClInclude Include="src\Loader.hpp" />
     <ClInclude Include="src\Mixer.hpp" />
     <ClInclude Include="src\Repository.hpp" />
@@ -112,10 +114,17 @@
     <ClCompile Include="src\PlaybackHandle.cpp" />
     <ClCompile Include="src\AudioLib.cpp" />
     <ClCompile Include="src\Internal.cpp" />
+    <ClCompile Include="src\LoadDispatcher.cpp" />
     <ClCompile Include="src\Loader.cpp" />
     <ClCompile Include="src\Mixer.cpp" />
     <ClCompile Include="src\Repository.cpp" />
     <ClCompile Include="src\Sound.cpp" />
+    <ClCompile Include="src\TrackHandle.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Demo\WithImGui\imgui\imgui.vcxproj">
+      <Project>{05a9737c-e682-451f-a307-4b01deb9d44b}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

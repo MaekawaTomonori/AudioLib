@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace Audio {
+namespace Audio::Internal {
 
     /** 1ファイル分のデコード済み音声データ。
      *  WAV / MP3 問わず float32 PCM として保持する。
@@ -34,6 +34,6 @@ namespace Audio {
         uint64_t                  GetFrameCount()  const { return frameCount_; }
     } typedef Data;
 
-} // namespace Handle
+} // namespace Audio::Internal
 
 #endif // Sound_HPP_

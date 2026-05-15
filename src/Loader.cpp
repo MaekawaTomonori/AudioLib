@@ -5,14 +5,14 @@
 
 #include "vendor/miniaudio.h"
 
-namespace Audio::Loader {
+namespace Audio::Internal::Loader {
 
     namespace {
         constexpr ma_uint32 kOutputChannels  = 2;
         constexpr ma_uint32 kOutputSampleRate = 44100;
     }
 
-    std::unique_ptr<Sound> Load(std::string_view _path) {
+    std::unique_ptr<Sound> Load(const std::string& _path) {
         ma_decoder_config config = ma_decoder_config_init(ma_format_f32, kOutputChannels, kOutputSampleRate);
 
         void*       pPcmData   = nullptr;
@@ -33,4 +33,4 @@ namespace Audio::Loader {
         return std::make_unique<Sound>(std::move(pcm), kOutputSampleRate, kOutputChannels, frameCount);
     }
 
-} // namespace Audio::Loader
+} // namespace Audio::Internal::Loader
