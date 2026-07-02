@@ -30,27 +30,27 @@ namespace Audio {
         /** Set the playback volume
          * @param _volume Volume level (0.0 = silent, 1.0 = full)
          */
-        void SetVolume(const float& _volume) const;
+        void SetVolume(const float _volume) const;
 
         /** Set the stereo pan position
          * @param _pan Pan position (-1.0 = full left, 0.0 = center, 1.0 = full right)
          */
-        void SetPan(const float& _pan) const;
+        void SetPan(const float _pan) const;
 
         /** Set the playback pitch
          * @param _pitch Pitch multiplier (1.0 = original, 2.0 = one octave up)
          */
-        void SetPitch(const float& _pitch) const;
+        void SetPitch(const float _pitch) const;
 
         /** Enable or disable looping
          * @param _loop true to loop indefinitely, false to play once
          */
-        void SetLoop(const bool& _loop) const;
+        void SetLoop(const bool _loop) const;
 
         /** Mute or unmute this playback without changing the stored volume
          * @param _mute true to mute, false to restore volume
          */
-        void Mute(const bool& _mute) const;
+        void Mute(const bool _mute) const;
     };
 
 } // namespace Audio

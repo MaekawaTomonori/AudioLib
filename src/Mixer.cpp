@@ -13,6 +13,7 @@ namespace Audio::Internal {
 
         uint64_t            soundId  = 0;
         uint64_t            trackId  = 0;
+        std::shared_ptr<const Sound> asset;
         ma_audio_buffer_ref bufferRef{};
         ma_sound*           sound    = nullptr;
         float               volume   = 1.0f;
@@ -66,9 +67,9 @@ namespace Audio::Internal {
         engine_ = nullptr;
     }
 
-    uint64_t Mixer::Play(uint64_t _soundId, const Sound& _sound, uint64_t _trackId) {
+    uint64_t Mixer::Play(uint64_t _soundId, std::shared_ptr<const Sound> _sound, uint64_t _trackId) {
         if (!engine_) return 0;
-        if (!_sound.IsValid()) return 0;
+        if (!_sound || !_sound->IsValid()) return 0;
 
         ma_sound_group* group = nullptr;
         if (_trackId != 0) {
@@ -91,6 +92,7 @@ namespace Audio::Internal {
 
         // Restart the reused instance if available
         if (reused) {
+            reused->asset = _sound;
             ma_sound_seek_to_pcm_frame(reused->sound, 0);
             ma_audio_buffer_ref_seek_to_pcm_frame(&reused->bufferRef, 0);
             if (ma_sound_start(reused->sound) == MA_SUCCESS) {
@@ -105,20 +107,28 @@ namespace Audio::Internal {
         auto instance = std::make_shared<PlaybackInstance>();
         instance->soundId = _soundId;
         instance->trackId = _trackId;
+        instance->asset = std::move(_sound);
 
         if (ma_audio_buffer_ref_init(
                 ma_format_f32,
-                _sound.GetChannels(),
-                _sound.GetPcm().data(),
-                _sound.GetFrameCount(),
+                instance->asset->GetChannels(),
+                instance->asset->GetPcm().data(),
+                instance->asset->GetFrameCount(),
                 &instance->bufferRef) != MA_SUCCESS) {
             return 0;
         }
 
         instance->sound = new ma_sound();
-        if (ma_sound_init_from_data_source(engine_, &instance->bufferRef, 0, group, instance->sound) != MA_SUCCESS
-            || ma_sound_start(instance->sound) != MA_SUCCESS) {
-            return 0; // destructor cleans up on shared_ptr release
+        if (ma_sound_init_from_data_source(engine_, &instance->bufferRef, 0, group, instance->sound) != MA_SUCCESS) {
+            delete instance->sound;
+            instance->sound = nullptr; // destructor の ma_sound_uninit 呼び出しを防ぐ
+            return 0;
+        }
+        if (ma_sound_start(instance->sound) != MA_SUCCESS) {
+            ma_sound_uninit(instance->sound);
+            delete instance->sound;
+            instance->sound = nullptr;
+            return 0;
         }
 
         const uint64_t id = nextId_++;

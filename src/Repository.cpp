@@ -2,9 +2,9 @@
 
 namespace Audio::Internal {
 
-    uint64_t Repository::Register(std::unique_ptr<Sound> _data, std::string_view _name) {
+    uint64_t Repository::Register(std::unique_ptr<Sound> _data, const std::string& _name) {
         // 同名が既に登録済みなら既存の id を返す
-        if (const auto it = nameToId_.find(std::string(_name)); it != nameToId_.end()) {
+        if (const auto it = nameToId_.find(_name); it != nameToId_.end()) {
             return it->second;
         }
 
@@ -16,21 +16,21 @@ namespace Audio::Internal {
         return id;
     }
 
-    const Sound* Repository::Find(uint64_t _id) const {
+    std::shared_ptr<const Sound> Repository::Find(const uint64_t _id) const {
         const auto it = data_.find(_id);
-        return it != data_.end() ? it->second.get() : nullptr;
+        return it != data_.end() ? it->second : nullptr;
     }
 
-    bool Repository::Contains(std::string_view _name) const {
-        return nameToId_.contains(std::string(_name));
+    bool Repository::Contains(const std::string& _name) const {
+        return nameToId_.contains(_name);
     }
 
-    uint64_t Repository::FindId(std::string_view _name) const {
-        const auto it = nameToId_.find(std::string(_name));
+    uint64_t Repository::FindId(const std::string& _name) const {
+        const auto it = nameToId_.find(_name);
         return it != nameToId_.end() ? it->second : 0;
     }
 
-    std::string Repository::FindName(uint64_t _id) const {
+    std::string Repository::FindName(const uint64_t _id) const {
         for (const auto& [name, id] : nameToId_) {
             if (id == _id) return name;
         }

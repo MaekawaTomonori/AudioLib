@@ -3,26 +3,47 @@
 #include "src/Internal.hpp"
 
 namespace Audio {
-    
-    Handle::Handle(std::string_view _path) {
-        auto repository = Internal::GetRepository();
 
-        // Check if the audio is already registered
+namespace {
+
+    // --- Resource Loading ---
+
+    Result DoLoad(const std::string& _path, uint64_t& _outId) {
+        auto* repository = Internal::GetRepository();
+
         if (repository->Contains(_path)) {
-            handle_ = repository->FindId(_path);
-            return;
+            _outId = repository->FindId(_path);
+            return {true};
         }
 
-        // Load audio from file path
         auto sound = Internal::Loader::Load(_path);
-        // Register the sound to Repository and get a handle
-        handle_ = repository->Register(std::move(sound), _path);
+        if (!sound || !sound->IsValid()) {
+            return {false, std::string("Failed to load audio: ") + _path};
+        }
+
+        _outId = repository->Register(std::move(sound), _path);
+        if (_outId == 0) {
+            return {false, std::string("Failed to register audio: ") + _path};
+        }
+
+        return {true};
     }
 
-    PlaybackHandle Handle::Play(const float& _volume, const float& _pitch, const float& _pan, const bool& _loop, const TrackHandle& _track) const {
-        const auto* sound = Internal::GetRepository()->Find(handle_);
+} // anonymous namespace
+
+    Handle::Handle(const std::string& _path) {
+        latestResult_ = DoLoad(_path, handle_);
+    }
+
+    Result Handle::Load(const std::string& _path) {
+        latestResult_ = DoLoad(_path, handle_);
+        return latestResult_;
+    }
+
+    PlaybackHandle Handle::Play(const float _volume, const float _pitch, const float _pan, const bool _loop, const TrackHandle& _track) const {
+        auto sound = Internal::GetRepository()->Find(handle_);
         if (!sound || !sound->IsValid()) return {};
-        const uint64_t id = Internal::GetMixer()->Play(handle_, *sound, _track.GetId());
+        const uint64_t id = Internal::GetMixer()->Play(handle_, std::move(sound), _track.GetId());
         PlaybackHandle handle(id);
         handle.SetVolume(_volume);
         handle.SetPitch(_pitch);

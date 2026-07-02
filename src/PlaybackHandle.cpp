@@ -24,27 +24,27 @@ namespace Audio {
         Internal::GetMixer()->Resume(id_);
     }
 
-    void PlaybackHandle::SetVolume(const float& _volume) const {
+    void PlaybackHandle::SetVolume(const float _volume) const {
         if (!IsValid()) return;
         Internal::GetMixer()->SetVolume(id_, _volume);
     }
 
-    void PlaybackHandle::SetPan(const float& _pan) const {
+    void PlaybackHandle::SetPan(const float _pan) const {
         if (!IsValid()) return;
         Internal::GetMixer()->SetPan(id_, _pan);
     }
 
-    void PlaybackHandle::SetPitch(const float& _pitch) const {
+    void PlaybackHandle::SetPitch(const float _pitch) const {
         if (!IsValid()) return;
         Internal::GetMixer()->SetPitch(id_, _pitch);
     }
 
-    void PlaybackHandle::SetLoop(const bool& _loop) const {
+    void PlaybackHandle::SetLoop(const bool _loop) const {
         if (!IsValid()) return;
         Internal::GetMixer()->SetLoop(id_, _loop);
     }
 
-    void PlaybackHandle::Mute(const bool& _mute) const {
+    void PlaybackHandle::Mute(const bool _mute) const {
         if (!IsValid()) return;
         Internal::GetMixer()->Mute(id_, _mute);
     }
