@@ -17,13 +17,12 @@ namespace Audio::Internal {
 
     public:
         Sound() = default;
-        Sound(std::vector<float> _pcm, uint32_t _sampleRate,
-              uint32_t _channels, uint64_t _frameCount)
-            : pcm_(std::move(_pcm))
-            , sampleRate_(_sampleRate)
-            , channels_(_channels)
-            , frameCount_(_frameCount)
-        {}
+        Sound(std::vector<float> _pcm, uint32_t _sampleRate, uint32_t _channels, uint64_t _frameCount)
+            :pcm_(std::move(_pcm)),
+            sampleRate_(_sampleRate),
+            channels_(_channels),
+            frameCount_(_frameCount) {
+        }
 
         bool IsValid() const { return !pcm_.empty(); }
 
