@@ -39,6 +39,12 @@ namespace Audio::Internal {
         return {};
     }
 
+    void Repository::Unregister(const uint64_t _id) {
+        std::lock_guard lock(mutex_);
+        if (data_.erase(_id) == 0) return;
+        std::erase_if(nameToId_, [_id](const auto& _entry) { return _entry.second == _id; });
+    }
+
     void Repository::Clear() {
         std::lock_guard lock(mutex_);
         data_.clear();
