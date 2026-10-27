@@ -7,7 +7,7 @@
 namespace Audio::Internal {
 
     /** 1ファイル分のデコード済み音声データ。
-     *  WAV / MP3 問わず float32 PCM として保持する。
+     *  WAV / MP3 / FLAC / OGG Vorbis 問わず float32 PCM として保持する。
      */
     class Sound {
         std::vector<float>  pcm_;

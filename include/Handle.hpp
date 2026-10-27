@@ -1,8 +1,10 @@
 #ifndef AUDIO_HPP_
 #define AUDIO_HPP_
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "PlaybackHandle.hpp"
 #include "Result.hpp"
@@ -34,6 +36,14 @@ namespace Audio {
          * @param _path The file path to the audio file
          */
         void Load(const std::string& _path) const;
+
+        /** Submit an async load of encoded audio held in memory (WAV, MP3, FLAC or OGG Vorbis). Returns immediately.
+         *  If a sound is already loaded under _name, it is reused and _bytes is not decoded.
+         *  Call IsValid() to wait for completion and check the outcome.
+         * @param _name The name that identifies the sound (shares names with file paths loaded by Load(path))
+         * @param _bytes The encoded audio data
+         */
+        void Load(const std::string& _name, std::vector<uint8_t> _bytes) const;
 
         /** Non-blocking: returns true once loading has finished (Loaded or Failed).
          *  Returns true for a default-constructed (never loaded) Handle as well.

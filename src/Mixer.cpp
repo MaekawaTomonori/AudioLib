@@ -3,7 +3,6 @@
 #include <memory>
 #include <ranges>
 
-#define MINIAUDIO_IMPLEMENTATION
 #include "vendor/miniaudio.h"
 
 namespace Audio::Internal {
