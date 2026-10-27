@@ -100,6 +100,7 @@
     <ClInclude Include="include\Handle.hpp" />
     <ClInclude Include="include\PlaybackHandle.hpp" />
     <ClInclude Include="include\AudioLib.hpp" />
+    <ClInclude Include="include\Result.hpp" />
     <ClInclude Include="include\TrackHandle.hpp" />
     <ClInclude Include="src\Internal.hpp" />
     <ClInclude Include="src\LoadDispatcher.hpp" />
