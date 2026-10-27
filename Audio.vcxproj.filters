@@ -30,6 +30,9 @@
     <ClInclude Include="vendor\miniaudio.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="vendor\stb_vorbis.c">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="src\Sound.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

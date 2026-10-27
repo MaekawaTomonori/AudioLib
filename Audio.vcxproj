@@ -109,6 +109,7 @@
     <ClInclude Include="src\Repository.hpp" />
     <ClInclude Include="src\Sound.hpp" />
     <ClInclude Include="vendor\miniaudio.h" />
+    <ClInclude Include="vendor\stb_vorbis.c" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Handle.cpp" />

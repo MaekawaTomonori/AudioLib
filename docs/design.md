@@ -219,9 +219,12 @@ miniaudio callback (AudioThread)
 
 | ライブラリ | 用途 | 配置 | 公開 API への露出 |
 |---|---|---|---|
-| `miniaudio.h` | オーディオデバイス管理・WAV/MP3 デコード | `vandor/miniaudio.h` | なし（internal only） |
+| `miniaudio.h` 0.11.25 | オーディオデバイス管理・WAV/MP3/FLAC デコード | `vendor/miniaudio.h`（ライセンスは `vendor/LICENSE.txt`） | なし（internal only） |
+| `stb_vorbis.c` v1.22 | OGG Vorbis デコード（miniaudio から使う） | `vendor/stb_vorbis.c`（nothings/stb `1ee679c`、ライセンスはファイル末尾） | なし（internal only） |
 
 `MINIAUDIO_IMPLEMENTATION` は `src/Backend.cpp` のみに定義。
+miniaudio は実装より前に stb_vorbis の宣言があるときだけ OGG Vorbis を有効にする（`STB_VORBIS_INCLUDE_STB_VORBIS_H` を見る）。
+0.11.25 の説明文にはこの組み込み方が書かれていないため、miniaudio を更新するときはこの判定が残っているか確かめる。
 他の翻訳単位では宣言のみを参照する。
 
 ---
