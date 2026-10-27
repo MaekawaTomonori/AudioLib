@@ -9,6 +9,20 @@ It provides functionality for loading, managing, and playing audio with a simple
 
 ---
 
+# Current Development Plan (Read First)
+
+Active work follows the roadmap in `docs/middleware-roadmap.md`.
+
+At the start of every session:
+
+1. Read `docs/middleware-roadmap.md` — it contains the phase plan, current task status, and session log.
+2. Follow its 運用ルール section: explain design intent before implementing; the developer's goal is to fully understand the implementation, not just to have working code.
+3. At the end of a session, update the checkboxes and append to the session log in that file.
+
+Background context lives in `docs/middleware.md` (project goals) and `docs/future-plan.md` (loading/streaming/sequencer plan, scheduled after the roadmap).
+
+---
+
 # Core Design Philosophy
 
 The following design principles must always be respected.

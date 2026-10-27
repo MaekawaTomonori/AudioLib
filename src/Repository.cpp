@@ -14,10 +14,10 @@ namespace Audio::Internal {
         return id;
     }
 
-    const Sound* Repository::Find(const uint64_t _id) const {
+    std::shared_ptr<const Sound> Repository::Find(const uint64_t _id) const {
         std::lock_guard lock(mutex_);
         const auto it = data_.find(_id);
-        return it != data_.end() ? it->second.get() : nullptr;
+        return it != data_.end() ? it->second : nullptr;
     }
 
     bool Repository::Contains(const std::string& _name) const {

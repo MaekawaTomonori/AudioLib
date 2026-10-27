@@ -102,10 +102,10 @@ PlaybackHandle Handle::Play(const float _volume, const float _pitch, const float
     impl_->WaitUntilReady();
     if (!impl_->IsLoaded()) return {};
 
-    const auto* sound = Internal::GetRepository()->Find(impl_->id);
+    auto sound = Internal::GetRepository()->Find(impl_->id);
     if (!sound || !sound->IsValid()) return {};
 
-    const uint64_t id = Internal::GetMixer()->Play(impl_->id, *sound, _track.GetId());
+    const uint64_t id = Internal::GetMixer()->Play(impl_->id, std::move(sound), _track.GetId());
     PlaybackHandle handle(id);
     handle.SetVolume(_volume);
     handle.SetPitch(_pitch);

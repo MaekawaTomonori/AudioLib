@@ -8,7 +8,6 @@ namespace Audio::Internal {
 
     /** 1ファイル分のデコード済み音声データ。
      *  WAV / MP3 問わず float32 PCM として保持する。
-     *  Repository が所有し、PlaybackInstance が非所有参照で使用する。
      */
     class Sound {
         std::vector<float>  pcm_;
@@ -18,13 +17,12 @@ namespace Audio::Internal {
 
     public:
         Sound() = default;
-        Sound(std::vector<float> _pcm, uint32_t _sampleRate,
-              uint32_t _channels, uint64_t _frameCount)
-            : pcm_(std::move(_pcm))
-            , sampleRate_(_sampleRate)
-            , channels_(_channels)
-            , frameCount_(_frameCount)
-        {}
+        Sound(std::vector<float> _pcm, uint32_t _sampleRate, uint32_t _channels, uint64_t _frameCount)
+            :pcm_(std::move(_pcm)),
+            sampleRate_(_sampleRate),
+            channels_(_channels),
+            frameCount_(_frameCount) {
+        }
 
         bool IsValid() const { return !pcm_.empty(); }
 
@@ -32,7 +30,7 @@ namespace Audio::Internal {
         uint32_t                  GetSampleRate()  const { return sampleRate_; }
         uint32_t                  GetChannels()    const { return channels_; }
         uint64_t                  GetFrameCount()  const { return frameCount_; }
-    } typedef Data;
+    };
 
 } // namespace Audio::Internal
 

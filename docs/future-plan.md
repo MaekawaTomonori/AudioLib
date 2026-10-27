@@ -1,5 +1,15 @@
 # Audio Library Future Plan
 
+> **⚠️ このドキュメントは旧計画(ma_engine 前提)です。**
+> 現在の進行管理と実装指示は `docs/middleware-roadmap.md` が唯一の起点であり、両者が矛盾する場合は roadmap が常に優先します。
+> 特に以下は自作ミキサー化(ma_engine / ma_sound 撤去)により**廃止済み**:
+>
+> - 10.8 / 11章 Phase 3: `MA_SOUND_FLAG_STREAM` によるストリーミング → roadmap Phase 3.5(独自リングバッファ方式)で置換
+> - 10.12: `ma_sound_set_fade_in_pcm_frames` による fade → 自前エンベロープ(roadmap Phase 2)で置換
+> - 4.3「バックエンド選択」の段階案(ma_engine 維持前提) → 廃止
+>
+> 本ドキュメントは背景・要件の参照資料としてのみ有効(4.3 の実装モデル、非同期ロード、ステップシーケンサ等)。
+
 ## 0. 前提
 
 現行実装は `miniaudio` の `ma_engine` を使ったシンプルなインメモリ再生ライブラリで、主な性質は以下です。

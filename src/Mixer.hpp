@@ -26,8 +26,8 @@ namespace Audio::Internal {
         bool Init();
         void Shutdown();
 
-        uint64_t Play(uint64_t _soundId, const Sound& _sound, uint64_t _trackId = 0);
-        bool     IsPlaying(uint64_t _id) const;
+        uint64_t Play(uint64_t _soundId, std::shared_ptr<const Sound> _sound, uint64_t _trackId = 0);
+        bool IsPlaying(uint64_t _id) const;
 
         void Stop(uint64_t _id);
         void StopAll(uint64_t _soundId);

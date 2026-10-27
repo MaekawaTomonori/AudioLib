@@ -13,7 +13,7 @@ namespace Audio::Internal {
 
     class Repository {
         mutable std::mutex                                   mutex_;
-        std::unordered_map<uint64_t, std::unique_ptr<Sound>> data_;
+        std::unordered_map<uint64_t, std::shared_ptr<Sound>> data_;
         std::unordered_map<std::string, uint64_t>            nameToId_;
         uint64_t nextId_ = 1;
 
@@ -22,7 +22,7 @@ namespace Audio::Internal {
         uint64_t     Register(std::unique_ptr<Sound> _data, const std::string& _name);
 
         // id で検索（Mixer が使用）
-        const Sound* Find(uint64_t _id) const;
+        std::shared_ptr<const Sound> Find(uint64_t _id) const;
 
         // 名前で登録済みか確認する
         bool         Contains(const std::string& _name) const;
