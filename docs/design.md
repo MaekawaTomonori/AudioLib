@@ -221,7 +221,7 @@ miniaudio callback (AudioThread)
 |---|---|---|---|
 | `miniaudio.h` | オーディオデバイス管理・WAV/MP3 デコード | `vandor/miniaudio.h` | なし（internal only） |
 
-`MINIAUDIO_IMPLEMENTATION` は `Audio.cpp` のみに定義。
+`MINIAUDIO_IMPLEMENTATION` は `src/Backend.cpp` のみに定義。
 他の翻訳単位では宣言のみを参照する。
 
 ---

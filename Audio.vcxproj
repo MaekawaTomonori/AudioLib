@@ -114,6 +114,7 @@
     <ClCompile Include="src\Handle.cpp" />
     <ClCompile Include="src\PlaybackHandle.cpp" />
     <ClCompile Include="src\AudioLib.cpp" />
+    <ClCompile Include="src\Backend.cpp" />
     <ClCompile Include="src\Internal.cpp" />
     <ClCompile Include="src\LoadDispatcher.cpp" />
     <ClCompile Include="src\Loader.cpp" />

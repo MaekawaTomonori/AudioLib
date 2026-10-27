@@ -50,6 +50,9 @@
     <ClCompile Include="src\Mixer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="src\Backend.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="src\Repository.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
