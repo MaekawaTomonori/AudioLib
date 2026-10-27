@@ -33,6 +33,9 @@ namespace Audio::Internal {
         // id から名前を取得する（未登録の場合は空文字列）
         std::string  FindName(uint64_t _id) const;
 
+        // id の登録を外す。再生中のインスタンスは shared_ptr で実体を持ち続ける
+        void         Unregister(uint64_t _id);
+
         // 全リソースを解放し、初期状態に戻す
         void         Clear();
     };

@@ -197,6 +197,20 @@ miniaudio callback (AudioThread)
   ※ active な PlaybackInstance がなければ SoundAsset のメモリも解放
 ```
 
+### Unload
+
+```
+Handle::Unload()
+  └─ 読み込み中なら完了を待つ（完了後に古いデータが登録されるのを防ぐ）
+  └─ Repository::Unregister(id)  ← 名前と id の登録を外す
+  └─ Handle を未ロード状態に戻す（Play は no-op、IsValid は false、再 Load 可）
+  ※ 同じ音を共有する他の Handle の Play も no-op になる
+  ※ 再生中のインスタンスは shared_ptr で実体を持ち続け、最後まで鳴る
+```
+
+旧計画（future-plan.md 10.3）では Unload 後の Play で再ロードする案だったが、
+メモリから読んだ音は元のバイト列を持たず再ロードできないため、再ロードはしない。
+
 ---
 
 ## スレッド安全性

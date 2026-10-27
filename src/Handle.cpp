@@ -98,6 +98,15 @@ void Handle::Load(const std::string& _name, std::vector<uint8_t> _bytes) const {
     Impl::SubmitLoad(impl_, _name, [bytes = std::move(_bytes)] { return Internal::Loader::Load(bytes); });
 }
 
+void Handle::Unload() const {
+    std::unique_lock lock(impl_->mutex);
+    impl_->cv.wait(lock, [this] { return impl_->state != Impl::LoadState::Loading; });
+    if (impl_->IsLoaded()) Internal::GetRepository()->Unregister(impl_->id);
+    impl_->state  = Impl::LoadState::Unloaded;
+    impl_->id     = 0;
+    impl_->result = {};
+}
+
 // --- State Query ---
 
 bool Handle::IsReady() const {

@@ -45,6 +45,13 @@ namespace Audio {
          */
         void Load(const std::string& _name, std::vector<uint8_t> _bytes) const;
 
+        /** Release the loaded sound. Waits for a load in progress to finish first.
+         *  The sound is released even if other Handles share it (their Play becomes a no-op);
+         *  playbacks already started keep playing to the end.
+         *  Afterwards this Handle is as if never loaded, and can be loaded again.
+         */
+        void Unload() const;
+
         /** Non-blocking: returns true once loading has finished (Loaded or Failed).
          *  Returns true for a default-constructed (never loaded) Handle as well.
          */
