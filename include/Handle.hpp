@@ -33,7 +33,7 @@ namespace Audio {
          *  Call IsValid() to wait for completion and check the outcome.
          * @param _path The file path to the audio file
          */
-        void Load(const std::string& _path);
+        void Load(const std::string& _path) const;
 
         /** Non-blocking: returns true once loading has finished (Loaded or Failed).
          *  Returns true for a default-constructed (never loaded) Handle as well.

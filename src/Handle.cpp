@@ -40,9 +40,9 @@ Handle::Handle(const std::string& _path)
 
 // --- Loading ---
 
-void Handle::Load(const std::string& _path) {
+void Handle::Load(const std::string& _path) const {
     {
-        std::lock_guard lock(impl_->mutex);
+        std::scoped_lock lock(impl_->mutex);
         impl_->state  = Impl::LoadState::Loading;
         impl_->id     = 0;
         impl_->result = {};
@@ -54,7 +54,7 @@ void Handle::Load(const std::string& _path) {
 
         // 既にロード済みなら即完了
         if (const uint64_t id = repo->FindId(_path); id != 0) {
-            std::lock_guard lock(impl->mutex);
+            std::scoped_lock lock(impl->mutex);
             impl->id     = id;
             impl->result = Result{true};
             impl->state  = Impl::LoadState::Loaded;
@@ -64,7 +64,7 @@ void Handle::Load(const std::string& _path) {
 
         auto sound = Internal::Loader::Load(_path);
 
-        std::lock_guard lock(impl->mutex);
+        std::scoped_lock lock(impl->mutex);
         if (!sound || !sound->IsValid()) {
             impl->result = Result{false, "Failed to load audio: " + _path};
             impl->state  = Impl::LoadState::Failed;
@@ -86,7 +86,7 @@ void Handle::Load(const std::string& _path) {
 
 bool Handle::IsReady() const {
     if (!impl_) return true;
-    std::lock_guard lock(impl_->mutex);
+    std::scoped_lock lock(impl_->mutex);
     return impl_->state != Impl::LoadState::Loading;
 }
 
