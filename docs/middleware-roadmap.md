@@ -9,7 +9,7 @@ middleware.md のスコープ 1〜6 を、自作ミキサー路線(ma_engine 撤
 
 ## 進行状況
 
-- **現在のフェーズ**: Phase 1(未着手)
+- **現在のフェーズ**: Phase 1(未着手)。Phase 3.5 のストリーミングの中核だけは、今の ma_engine の上に先に入っている(2026-10-28、下のログ)
 - **次にやるタスク**: 1-1. Sink インターフェース設計(実装前に自作ミキサー全体の設計説明から入る)
 - 各フェーズ内のチェックボックス `[ ]` / `[x]` が個別タスクの完了状態を表す
 
@@ -33,6 +33,7 @@ middleware.md のスコープ 1〜6 を、自作ミキサー路線(ma_engine 撤
 | 2026-07-02 | 現状分析・ギャップ分析・本ロードマップ策定 | 自作ミキサー路線を採用。XAudio2 は移行ではなく将来の 2 つ目 sink 候補。コマンドキューは Phase 1 に必須統合 | Phase 0: Sound の shared_ptr 化 |
 | 2026-07-02 | **Phase 0 完了**(開発者が実装、Claude がレビュー2巡)。ビルド・Demo 動作確認済み | ReferencePtr(GESTD)は検出のみで延命不可のため不採用。shared_ptr は src/ 内部限定。学習ポイント: データ(Sound)と再生状態(PlaybackInstance)の分離、値渡し+move の所有権受け渡し、`const shared_ptr<T>` と `shared_ptr<const T>` の違い、非 const 左辺値参照は右辺値を束縛できない | Phase 1: 自作ミキサー(まず全体設計の説明から。unique_ptr+破棄遅延方式への置換もここで再検討) |
 | 2026-07-06 | BGM ストリーミングを **Phase 3.5** として本ロードマップに統合。future-plan.md を旧計画と位置づけ、冒頭に廃止バナーを追加 | `MA_SOUND_FLAG_STREAM` 案は ma_sound 撤去により廃止。future-plan 4.3 の独自実装(1 再生 1 デコーダ + SPSC リングバッファ + refill ワーカー)を採用。Phase 1 の Voice 設計で「N フレーム読み出し」境界を 1 箇所に閉じ込めておく(1-2 にタスク追加済み) | Phase 1-1: Sink インターフェース設計(自作ミキサー全体の設計説明から入る) |
+| 2026-10-28 | **Phase 3.5 の一部を先に実装**(NexelClient の要望。Claude が実装、開発者の承認済みの設計で)。Probe / LoadPolicy / StreamingAsset / Repository の 2 型対応(3.5-1, 3.5-2)、PcmRingBuffer(自作 SPSC)・StreamingVoice・StreamRefiller(3.5-3〜3.5-5 相当)を、今の ma_engine の上に custom ma_data_source として載せた。公開 API は不変 | MA_SOUND_FLAG_STREAM は使っていない(廃止の判断はそのまま)。準備はワーカー、準備前は無音を返して頭を欠かさない。pitch は当面 ma_sound のリサンプラ任せ(自作ミキサーで線形補間に置き換える)。Seek は未対応。確認(リポジトリ外の確認プログラム、35 項目): リングバッファの順序(2 スレッド 200 万フレーム)、判定と Probe、フルデコードと同じサンプル列、ループの継ぎ目、壊れたデータで止まらず終わる、346 秒の ogg を再生中のメモリ増 +4.7MB、再生・一時停止・停止 300 回、再生中の Unload、Shutdown。Demo(Console / WithImGui)のビルドと Console の再生 | 開発者による動作確認。Phase 1 で読み出し元を自作ミキサーの Voice 境界に差し替える。3.5-6(デバッグ表示)は Phase 3 の後 |
 
 ## 決定事項(経緯)
 
@@ -179,39 +180,39 @@ future-plan 4.3 の独自実装モデルを自作ミキサーのボイスソー�
 
 ### 3.5-1. Probe と自動判定
 
-- [ ] `src/AssetMeta.hpp`: sampleRate / channels / totalFrames / durationSec / estimatedDecodedBytes
-- [ ] `Loader::Probe(path)`: `ma_decoder` でヘッダ + `ma_decoder_get_length_in_pcm_frames` のみ。フルデコードしない
-- [ ] `src/LoadPolicy.hpp`: `Decide(meta)` — durationSec >= 10.0 または estimatedDecodedBytes >= 16MB → Streaming、それ以外 → Static。閾値は定数で持ち、明示 override API は後回し(YAGNI)
+- [x] `src/AssetMeta.hpp`: sampleRate / channels / totalFrames / durationSec / estimatedDecodedBytes
+- [x] `Loader::Probe(path)`: `ma_decoder` でヘッダ + `ma_decoder_get_length_in_pcm_frames` のみ。フルデコードしない(メモリ版も)
+- [x] `src/LoadPolicy.hpp`: `Decide(meta)` — durationSec >= 10.0 または estimatedDecodedBytes >= 16MB → Streaming、それ以外 → Static。閾値は定数で持ち、明示 override API は後回し(YAGNI)
 
 ### 3.5-2. アセット型の分離
 
-- [ ] ストリーミングアセット: path + AssetMeta のみ保持(PCM を持たない)。
+- [x] ストリーミングアセット: path + AssetMeta のみ保持(PCM を持たない)。メモリから読んだ音はエンコード済みバイト列を持つ(`StreamingAsset`)。
       既存 `Sound`(静的、全 PCM 保持)と並ぶ 2 つ目のアセット型
-- [ ] Repository が両アセット型を扱えるようにする(公開 API の `Handle` は不変。ユーザーはロード方式を意識しない)
+- [x] Repository が両アセット型を扱えるようにする(公開 API の `Handle` は不変。ユーザーはロード方式を意識しない)
 
 ### 3.5-3. ボイスソースの差し替え
 
 - [ ] Phase 1 で閉じ込めた「N フレーム読み出し」境界に、静的 PCM / ストリーミングの 2 実装を用意
-- [ ] ストリーミング側の読み出し元: SPSC リングバッファ(f32 / stereo / 44.1kHz 固定、容量 2.0 秒)
-- [ ] 枯渇(underrun)時は無音を返し、underrun カウンタを増やす(ノイズ・クラッシュ禁止)
+- [x] ストリーミング側の読み出し元: SPSC リングバッファ(f32 / stereo / 44.1kHz 固定、容量 2.0 秒)
+- [x] 枯渇(underrun)時は無音を返し、underrun カウンタを増やす(ノイズ・クラッシュ禁止)
 - [ ] pitch は静的ボイスと同じ線形補間リサンプラを通す(リングバッファ読み出しは順方向のみなので成立する。
       pitch > 1.0 は消費が速くなるため低水位判定に効く点に注意)
 
 ### 3.5-4. refill ワーカー
 
-- [ ] ストリーミングボイスごとに専用 `ma_decoder` を保持(1 再生 1 デコーダ)
-- [ ] refill スレッド: 充填率が低水位(25%)を下回ったら prefetch 単位(0.5 秒)でデコードして書き込む
-- [ ] 再生開始時: prefetch 完了(0.5 秒分)を待ってからボイスを Playing にする(頭欠け防止)
-- [ ] ループ: デコーダが終端に達したら `ma_decoder_seek_to_pcm_frame(0)` して継続充填
+- [x] ストリーミングボイスごとに専用 `ma_decoder` を保持(1 再生 1 デコーダ)
+- [x] refill スレッド: 充填率が低水位(25%)を下回ったら prefetch 単位(0.5 秒)でデコードして書き込む
+- [x] 再生開始時: prefetch 完了(0.5 秒分)を待ってからボイスを Playing にする(頭欠け防止。ma_engine 上では、準備前は何も消費せず無音を返す)
+- [x] ループ: デコーダが終端に達したら `ma_decoder_seek_to_pcm_frame(0)` して継続充填
       (リングバッファ内でシームレスにつながるため、境界の無音・破裂音が出ない)
-- [ ] 非ループ: 終端到達をワーカーが記録し、リングバッファが空になった時点でボイス終了
+- [x] 非ループ: 終端到達をワーカーが記録し、リングバッファが空になった時点でボイス終了
 
 ### 3.5-5. 寿命とレース対応
 
-- [ ] Stop / 自然終了 / スチール時のデコーダ破棄はオーディオスレッドで行わず、
+- [x] Stop / 自然終了 / スチール時のデコーダ破棄はオーディオスレッドで行わず、
       ガベージキュー経由でワーカー(または API スレッド)が行う
-- [ ] Shutdown 順序: デバイス停止 → refill ワーカー停止 → デコーダ破棄 → Repository::Clear
-- [ ] pause / resume / stop / 破棄の高速反復でクラッシュ・リークしないこと(退行確認項目)
+- [x] Shutdown 順序: デバイス停止 → refill ワーカー停止 → デコーダ破棄 → Repository::Clear(ma_engine 上では、ma_sound を外す → ワーカー停止 → グループ → エンジン → Repository)
+- [x] pause / resume / stop / 破棄の高速反復でクラッシュ・リークしないこと(退行確認項目)
 
 ### 3.5-6. デバッグ可視化
 

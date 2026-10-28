@@ -2,22 +2,41 @@
 
 namespace Audio::Internal {
 
-    uint64_t Repository::Register(std::unique_ptr<Sound> _data, const std::string& _name) {
-        std::lock_guard lock(mutex_);
+    // 同名が既にあればその id、なければ有効なときだけ新しい id で _store する（呼ぶ側で lock 済み）
+    template <class Store>
+    uint64_t Repository::RegisterAsset(const std::string& _name, const bool _valid, Store _store) {
         if (const auto it = nameToId_.find(_name); it != nameToId_.end()) {
             return it->second;
         }
-        if (!_data || !_data->IsValid()) return 0;
+        if (!_valid) return 0;
         const uint64_t id = nextId_++;
         nameToId_[_name] = id;
-        data_[id] = std::move(_data);
+        _store(data_[id]);
         return id;
+    }
+
+    uint64_t Repository::Register(std::unique_ptr<Sound> _data, const std::string& _name) {
+        std::lock_guard lock(mutex_);
+        const bool valid = _data && _data->IsValid();
+        return RegisterAsset(_name, valid, [&](Asset& _asset) { _asset.sound = std::move(_data); });
+    }
+
+    uint64_t Repository::Register(std::unique_ptr<StreamingAsset> _data, const std::string& _name) {
+        std::lock_guard lock(mutex_);
+        const bool valid = _data && _data->IsValid();
+        return RegisterAsset(_name, valid, [&](Asset& _asset) { _asset.streaming = std::move(_data); });
     }
 
     std::shared_ptr<const Sound> Repository::Find(const uint64_t _id) const {
         std::lock_guard lock(mutex_);
         const auto it = data_.find(_id);
-        return it != data_.end() ? it->second : nullptr;
+        return it != data_.end() ? it->second.sound : nullptr;
+    }
+
+    std::shared_ptr<const StreamingAsset> Repository::FindStreaming(const uint64_t _id) const {
+        std::lock_guard lock(mutex_);
+        const auto it = data_.find(_id);
+        return it != data_.end() ? it->second.streaming : nullptr;
     }
 
     bool Repository::Contains(const std::string& _name) const {

@@ -108,6 +108,12 @@
     <ClInclude Include="src\Mixer.hpp" />
     <ClInclude Include="src\Repository.hpp" />
     <ClInclude Include="src\Sound.hpp" />
+    <ClInclude Include="src\AssetMeta.hpp" />
+    <ClInclude Include="src\LoadPolicy.hpp" />
+    <ClInclude Include="src\PcmRingBuffer.hpp" />
+    <ClInclude Include="src\StreamingAsset.hpp" />
+    <ClInclude Include="src\StreamingVoice.hpp" />
+    <ClInclude Include="src\StreamRefiller.hpp" />
     <ClInclude Include="vendor\miniaudio.h" />
     <ClInclude Include="vendor\stb_vorbis.c" />
   </ItemGroup>
@@ -122,6 +128,8 @@
     <ClCompile Include="src\Mixer.cpp" />
     <ClCompile Include="src\Repository.cpp" />
     <ClCompile Include="src\Sound.cpp" />
+    <ClCompile Include="src\StreamingVoice.cpp" />
+    <ClCompile Include="src\StreamRefiller.cpp" />
     <ClCompile Include="src\TrackHandle.cpp" />
   </ItemGroup>
   <ItemGroup>

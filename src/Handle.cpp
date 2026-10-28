@@ -20,7 +20,7 @@ struct Handle::Impl {
 
     // --- Loading ---
 
-    // _name で登録済みならそれを使い、なければ _decode の結果を _name で登録する
+    // _name で登録済みならそれを使い、なければ _decode の結果（Static か Streaming、Loader::LoadedAsset）を _name で登録する
     template <class Decode>
     static void SubmitLoad(std::shared_ptr<Impl> _impl, std::string _name, Decode _decode);
 
@@ -43,7 +43,7 @@ void Handle::Impl::SubmitLoad(std::shared_ptr<Impl> _impl, std::string _name, De
         _impl->result = {};
     }
 
-    Internal::GetDispatcher()->Submit([impl = std::move(_impl), name = std::move(_name), decode = std::move(_decode)] {
+    Internal::GetDispatcher()->Submit([impl = std::move(_impl), name = std::move(_name), decode = std::move(_decode)]() mutable {
         auto* repo = Internal::GetRepository();
 
         // 既にロード済みなら即完了
@@ -56,14 +56,14 @@ void Handle::Impl::SubmitLoad(std::shared_ptr<Impl> _impl, std::string _name, De
             return;
         }
 
-        auto sound = decode();
+        auto loaded = decode();
 
         std::scoped_lock lock(impl->mutex);
-        if (!sound || !sound->IsValid()) {
+        if (!loaded.IsValid()) {
             impl->result = Result{false, "Failed to load audio: " + name};
             impl->state  = LoadState::Failed;
         } else {
-            impl->id = repo->Register(std::move(sound), name);
+            impl->id = loaded.sound ? repo->Register(std::move(loaded.sound), name) : repo->Register(std::move(loaded.streaming), name);
             if (impl->id == 0) {
                 impl->result = Result{false, "Failed to register audio: " + name};
                 impl->state  = LoadState::Failed;
@@ -91,11 +91,11 @@ Handle::Handle(const std::string& _path)
 // --- Loading ---
 
 void Handle::Load(const std::string& _path) const {
-    Impl::SubmitLoad(impl_, _path, [_path] { return Internal::Loader::Load(_path); });
+    Impl::SubmitLoad(impl_, _path, [_path] { return Internal::Loader::LoadAsset(_path); });
 }
 
 void Handle::Load(const std::string& _name, std::vector<uint8_t> _bytes) const {
-    Impl::SubmitLoad(impl_, _name, [bytes = std::move(_bytes)] { return Internal::Loader::Load(bytes); });
+    Impl::SubmitLoad(impl_, _name, [bytes = std::move(_bytes)]() mutable { return Internal::Loader::LoadAsset(std::move(bytes)); });
 }
 
 void Handle::Unload() const {
@@ -127,10 +127,16 @@ PlaybackHandle Handle::Play(const float _volume, const float _pitch, const float
     impl_->WaitUntilReady();
     if (!impl_->IsLoaded()) return {};
 
-    auto sound = Internal::GetRepository()->Find(impl_->id);
-    if (!sound || !sound->IsValid()) return {};
+    // 長い音はロード時に Streaming になっている（LoadPolicy）。どちらでも PlaybackHandle の扱いは同じ
+    const auto* repository = Internal::GetRepository();
+    uint64_t id = 0;
+    if (auto sound = repository->Find(impl_->id); sound && sound->IsValid()) {
+        id = Internal::GetMixer()->Play(impl_->id, std::move(sound), _track.GetId());
+    } else if (auto streaming = repository->FindStreaming(impl_->id)) {
+        id = Internal::GetMixer()->PlayStreaming(impl_->id, std::move(streaming), _track.GetId());
+    }
+    if (id == 0) return {};
 
-    const uint64_t id = Internal::GetMixer()->Play(impl_->id, std::move(sound), _track.GetId());
     PlaybackHandle handle(id);
     handle.SetVolume(_volume);
     handle.SetPitch(_pitch);

@@ -6,6 +6,8 @@
 #include <unordered_map>
 
 #include "Sound.hpp"
+#include "StreamRefiller.hpp"
+#include "StreamingAsset.hpp"
 
 struct ma_engine;
 
@@ -20,6 +22,7 @@ namespace Audio::Internal {
         std::unordered_map<uint64_t, std::shared_ptr<TrackInstance>>    tracks_;
         uint64_t nextId_      = 1;
         uint64_t nextTrackId_ = 1;
+        StreamRefiller refiller_;
 
     public:
         ~Mixer();
@@ -27,6 +30,8 @@ namespace Audio::Internal {
         void Shutdown();
 
         uint64_t Play(uint64_t _soundId, std::shared_ptr<const Sound> _sound, uint64_t _trackId = 0);
+        // 再生しながらデコードする（StreamingVoice を 1 つ作り、refill ワーカーに渡す）
+        uint64_t PlayStreaming(uint64_t _soundId, std::shared_ptr<const StreamingAsset> _asset, uint64_t _trackId = 0);
         bool IsPlaying(uint64_t _id) const;
 
         void Stop(uint64_t _id);
@@ -51,6 +56,13 @@ namespace Audio::Internal {
         void SetMasterVolume(float _volume) const;
 
     private:
+        // --- Playback Control ---
+        // 止めて Stopped にする。静的な再生は先頭へ戻して再利用に備える
+        static void StopInstance(PlaybackInstance& _instance);
+        // ma_sound を作って鳴らし始め、id を振って登録する。失敗なら 0
+        uint64_t StartInstance(std::shared_ptr<PlaybackInstance> _instance, void* _dataSource, uint64_t _trackId);
+
+        // --- State Management ---
         void Cleanup();
     };
 
