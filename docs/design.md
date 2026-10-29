@@ -211,6 +211,53 @@ Handle::Unload()
 旧計画（future-plan.md 10.3）では Unload 後の Play で再ロードする案だったが、
 メモリから読んだ音は元のバイト列を持たず再ロードできないため、再ロードはしない。
 
+### Streaming（長い音）
+
+ロードマップ Phase 3.5 の設計（1 再生 1 デコーダ + SPSC リングバッファ + refill ワーカー）を、
+自作ミキサーより先に、今の `ma_engine` の上に custom `ma_data_source` として載せたもの。
+公開 API は変えない。どちらで持つかは Loader が決め、ユーザーは意識しない。
+
+```
+Handle::Load(path) / Load(name, bytes)
+  └─ Loader::Probe()  ← ma_decoder でヘッダと長さだけ読む（フルデコードしない）
+  └─ LoadPolicy::Decide(meta)
+       ├─ 10 秒以上 か デコード後 16MB 以上 → StreamingAsset（パスかエンコード済みバイト列 + AssetMeta だけを持つ）
+       └─ それ以外 / 長さ不明             → 従来どおりフルデコードして Sound
+  └─ Repository::Register(...)  ← 1 つの id に Sound か StreamingAsset のどちらか
+
+Handle::Play()
+  └─ Repository::FindStreaming(id) があれば Mixer::PlayStreaming()
+       └─ StreamingVoice を作る（専用デコーダ + PcmRingBuffer 2.0 秒）
+       └─ ma_sound_init_from_data_source(voice のデータソース) して開始
+       └─ StreamRefiller::Add(voice)  ← 準備（デコーダを開いて 0.5 秒分）はワーカーがする
+
+AudioThread（miniaudio が ma_sound 経由でデータソースを読む）
+  └─ 準備前: 無音を返す（何も消費しないので頭は欠けない。鳴り始めがその分だけ遅れる）
+  └─ 準備後: リングバッファから読むだけ。足りなければ残りを無音にして underrun を数える
+  └─ 最後まで読み終わり（ループしない）、バッファも空 → MA_AT_END
+
+StreamRefiller（ワーカー 1 本、10ms ごとに巡回）
+  └─ 残りが 25% を切った再生に、0.5 秒ずつデコードして満たす
+  └─ ループ中は終端でデコーダを先頭へ seek して続ける（バッファ内でつながるので継ぎ目なし）
+```
+
+| スレッド | すること | しないこと |
+|---|---|---|
+| AudioThread | `PcmRingBuffer::Read` と無音の書き込み | デコード、file IO、確保、ロック |
+| refill ワーカー | デコーダの生成・seek・読み出し、`PcmRingBuffer::Write`、最後の参照を手放したときのデコーダ破棄 | `Mixer` に触る |
+| API スレッド | `StreamingVoice` の作成、`ma_sound` の初期化と破棄 | デコード |
+
+- `PcmRingBuffer` は書き手 1・読み手 1 の固定長バッファ。位置を増え続けるフレーム数で持ち、
+  release で進めて acquire で読む。Phase 1 のコマンドキューにも同じ考え方を使える。
+- ループと範囲はデータソース自身が扱う（`MA_DATA_SOURCE_SELF_MANAGED_RANGE_AND_LOOP_POINT`）。
+  `SetLoop` は `ma_sound_set_looping` → `onSetLooping` で、ワーカーが見るフラグを切り替える。
+- Seek は未対応（`MA_NOT_IMPLEMENTED`）。止めた Streaming 再生は再利用しない（静的な再生だけが先頭へ戻して再利用される）。
+- 寿命: `PlaybackInstance` は `ma_sound` を外してから `StreamingVoice` を手放す。ワーカーは `weak_ptr` で持ち、
+  巡回中だけ `shared_ptr` にする。Unload しても再生中のものは最後まで鳴る。
+- Shutdown: 再生（`ma_sound`）を外す → ワーカーを止める（残ったデコーダはここで破棄）→ グループ → エンジン → Repository。
+- 自作ミキサー（Phase 1）に移るときは、データソースの読み出し（`StreamingVoice` の Read）を
+  Voice の「N フレーム読み出し」境界に差し替える。`PcmRingBuffer`、`StreamRefiller`、`LoadPolicy` はそのまま使える。
+
 ---
 
 ## スレッド安全性

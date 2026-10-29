@@ -12,6 +12,8 @@ add_library(AudioLib STATIC
     src/PlaybackHandle.cpp
     src/Repository.cpp
     src/Sound.cpp
+    src/StreamingVoice.cpp
+    src/StreamRefiller.cpp
     src/TrackHandle.cpp
 )
 target_compile_features(AudioLib PUBLIC cxx_std_20)
