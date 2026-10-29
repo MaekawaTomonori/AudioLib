@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "include/Ears.hpp"
 #include "Sound.hpp"
 #include "StreamRefiller.hpp"
 #include "StreamingAsset.hpp"
@@ -29,9 +30,11 @@ namespace Audio::Internal {
         bool Init();
         void Shutdown();
 
-        uint64_t Play(uint64_t _soundId, std::shared_ptr<const Sound> _sound, uint64_t _trackId = 0);
+        // _ears があれば、鳴らし始める前に Ear をはさみ、その値から鳴らす
+        uint64_t Play(uint64_t _soundId, std::shared_ptr<const Sound> _sound, uint64_t _trackId = 0, const Ears* _ears = nullptr);
         // 再生しながらデコードする（StreamingVoice を 1 つ作り、refill ワーカーに渡す）
-        uint64_t PlayStreaming(uint64_t _soundId, std::shared_ptr<const StreamingAsset> _asset, uint64_t _trackId = 0);
+        uint64_t PlayStreaming(uint64_t _soundId, std::shared_ptr<const StreamingAsset> _asset, uint64_t _trackId = 0,
+                               const Ears* _ears = nullptr);
         bool IsPlaying(uint64_t _id) const;
 
         void Stop(uint64_t _id);
@@ -43,6 +46,8 @@ namespace Audio::Internal {
         void SetPan(uint64_t _id, float _pan);
         void SetPitch(uint64_t _id, float _pitch);
         void SetLoop(uint64_t _id, bool _loop);
+        // まだ Ear のない再生には、ここではさむ（その値から始める）。あれば今の値から近づける
+        void SetEars(uint64_t _id, const Ears& _ears);
 
         // --- Track ---
         uint64_t CreateTrack();
@@ -60,7 +65,13 @@ namespace Audio::Internal {
         // 止めて Stopped にする。静的な再生は先頭へ戻して再利用に備える
         static void StopInstance(PlaybackInstance& _instance);
         // ma_sound を作って鳴らし始め、id を振って登録する。失敗なら 0
-        uint64_t StartInstance(std::shared_ptr<PlaybackInstance> _instance, void* _dataSource, uint64_t _trackId);
+        uint64_t StartInstance(std::shared_ptr<PlaybackInstance> _instance, void* _dataSource, uint64_t _trackId, const Ears* _ears);
+
+        // --- Ear ---
+        // 鳴らし始める前に: _ears があれば Ear をはさんでその値から、なくて Ear が残っていれば素通しの値から始める
+        void PrepareEar(PlaybackInstance& _instance, const Ears* _ears);
+        // ma_sound と行き先（Track か全体の出口）の間に Ear をはさむ。はさめなければ false で、音はそのまま鳴る
+        bool AttachEar(PlaybackInstance& _instance);
 
         // --- State Management ---
         void Cleanup();

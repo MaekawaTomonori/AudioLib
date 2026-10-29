@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include "Ears.hpp"
+
 namespace Audio {
 
     class PlaybackHandle {
@@ -51,6 +53,13 @@ namespace Audio {
          * @param _mute true to mute, false to restore volume
          */
         void Mute(const bool _mute) const;
+
+        /** Set the volume and delay of each ear (see Ears). The first call on a playback started without Ears
+         *  inserts the ear processing while it plays, which can drop about 10 ms once; pass Ears to Play to avoid that.
+         *  Later calls move smoothly from the current values to these. Does nothing when the output is not stereo.
+         * @param _ears The volume and delay of the left and the right ear
+         */
+        void SetEars(const Ears& _ears) const;
     };
 
 } // namespace Audio
