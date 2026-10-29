@@ -17,7 +17,7 @@ namespace Audio::Internal {
         constexpr float maxDelayFrames = float(ringSize - 2);
 
         // 値の並び: 左右の音量、左右の遅れ（サンプル）、左右のカットオフ（Hz の 2 を底とする対数。近づけるとき耳に均等になる）
-        enum Value { LeftVolume, RightVolume, LeftDelay, RightDelay, LeftCutoff, RightCutoff, ValueCount };
+        enum Value { LeftVolume, RightVolume, LeftDelay, RightDelay, LeftCutoff, RightCutoff, Send, ValueCount };
         // カットオフが動いている間、ローパスの係数を作り直す間隔（サンプル）。32 では 10 ms で 5 オクターブ動かすと段差が出た
         constexpr uint32_t tuneEvery = 8;
 
@@ -96,6 +96,7 @@ namespace Audio::Internal {
             target[RightDelay].store(std::min(DelaySeconds(_ears.rightDelay) * sampleRate, maxDelayFrames), std::memory_order_relaxed);
             target[LeftCutoff].store(std::min(CutoffOctaves(_ears.leftCutoff), openOctaves), std::memory_order_relaxed);
             target[RightCutoff].store(std::min(CutoffOctaves(_ears.rightCutoff), openOctaves), std::memory_order_relaxed);
+            target[Send].store(std::isnan(_ears.send) ? 0.f : std::clamp(_ears.send, 0.f, 1.f), std::memory_order_relaxed);
         }
 
         // 片方の耳の 1 サンプル: 遅らせ、削り、音量を掛ける。_t はこの回のうちのどこか（0 から 1）
@@ -120,7 +121,7 @@ namespace Audio::Internal {
             return near + (far - near) * part;
         }
 
-        void Process(const float* _in, float* _out, const uint32_t _frames) {
+        void Process(const float* _in, float* _out, float* _send, const uint32_t _frames) {
             // restart を先に見る（Restart が書いた値を、そのあとで読むため）
             const bool fresh = restart.exchange(false, std::memory_order_acquire);
             std::array<float, ValueCount> to{};
@@ -160,6 +161,16 @@ namespace Audio::Internal {
                 _out[frame * 2 + 1] = Hear(1, frame, t, now);
                 write = (write + 1) & ringMask;
             }
+            // 響きに送る分: 耳の音量・遅れ・カットオフの前の音に send を掛ける（響きは周り中から来るので、向きを付けない）
+            if (from[Send] == 0.f && to[Send] == 0.f) {
+                std::fill(_send, _send + _frames * 2, 0.f);
+            } else {
+                for (uint32_t frame = 0; frame < _frames; ++frame) {
+                    const float amount = from[Send] + (to[Send] - from[Send]) * (float(frame + 1) / float(_frames));
+                    _send[frame * 2]     = _in[frame * 2] * amount;
+                    _send[frame * 2 + 1] = _in[frame * 2 + 1] * amount;
+                }
+            }
             current = to;
         }
     };
@@ -168,11 +179,12 @@ namespace Audio::Internal {
         void ProcessEar(ma_node* _node, const float** _framesIn, ma_uint32* _frameCountIn, float** _framesOut, ma_uint32* _frameCountOut) {
             (void)_frameCountIn; // 入力と出力の数は同じ（速さを変えないノード）
             // Node は先頭が ma_node_base なので、miniaudio から渡されたノードはそのまま Ear::Node を指している
-            reinterpret_cast<Ear::Node*>(_node)->Process(_framesIn[0], _framesOut[0], *_frameCountOut);
+            reinterpret_cast<Ear::Node*>(_node)->Process(_framesIn[0], _framesOut[0], _framesOut[1], *_frameCountOut);
         }
 
-        // 入力 1・出力 1。音が止まっている間は処理しない（1 ms 以下の遅れの残りは、次の Restart で消す）
-        ma_node_vtable earVtable = {ProcessEar, nullptr, 1, 1, 0};
+        // 入力 1・出力 2（耳ごとの音と、響きに送る分。miniaudio は 1 回処理して両方を取っておき、2 つ目はそこから読む）。
+        // 音が止まっている間は処理しない（1 ms 以下の遅れの残りは、次の Restart で消す）
+        ma_node_vtable earVtable = {ProcessEar, nullptr, 1, 2, 0};
     } // namespace
 
     Ear::Ear(std::unique_ptr<Node> _node) : node_(std::move(_node)) {}
@@ -189,11 +201,12 @@ namespace Audio::Internal {
         node->openOctaves = std::log2(std::min(Ears::noCutoff, node->sampleRate * 0.45f));
         node->Store({});
 
-        constexpr ma_uint32 channels[1] = {2};
-        ma_node_config      config      = ma_node_config_init();
-        config.vtable                   = &earVtable;
-        config.pInputChannels           = channels;
-        config.pOutputChannels          = channels;
+        constexpr ma_uint32 inputChannels[1]  = {2};
+        constexpr ma_uint32 outputChannels[2] = {2, 2};
+        ma_node_config      config            = ma_node_config_init();
+        config.vtable                         = &earVtable;
+        config.pInputChannels                 = inputChannels;
+        config.pOutputChannels                = outputChannels;
         if (ma_node_init(ma_engine_get_node_graph(_engine), &config, nullptr, &node->base) != MA_SUCCESS) return nullptr;
         return std::unique_ptr<Ear>(new Ear(std::move(node)));
     }
