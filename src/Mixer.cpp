@@ -65,6 +65,7 @@ namespace Audio::Internal {
         if (!engine_) return;
 
         sounds_.clear(); // sounds must be uninit before their groups
+        reverb_.reset(); // Ear（送る分）を外した後に外す
         refiller_.Shutdown(); // 再生を外した後に止める。残ったデコーダはここで破棄される
         tracks_.clear(); // TrackInstance destructors handle ma_sound_group cleanup
 
@@ -194,8 +195,13 @@ namespace Audio::Internal {
             ma_node_attach_output_bus(_instance.sound, 0, destination, 0);
             return false;
         }
+        SendToReverb(*ear);
         _instance.ear = std::move(ear);
         return true;
+    }
+
+    void Mixer::SendToReverb(Ear& _ear) const {
+        if (reverb_) ma_node_attach_output_bus(static_cast<ma_node*>(_ear.AsNode()), 1, static_cast<ma_node*>(reverb_->AsNode()), 0);
     }
 
     void Mixer::StopInstance(PlaybackInstance& _instance) {
@@ -347,6 +353,17 @@ namespace Audio::Internal {
     void Mixer::SetMasterVolume(float _volume) const {
         if (!engine_) return;
         ma_engine_set_volume(engine_, _volume);
+    }
+
+    void Mixer::SetReverb(const Reverb& _reverb) {
+        if (!engine_) return;
+        if (!reverb_) {
+            reverb_ = Reverberator::Create(engine_);
+            if (!reverb_) return;
+            for (auto& instance : sounds_ | std::views::values)
+                if (instance->ear) SendToReverb(*instance->ear);
+        }
+        reverb_->Set(_reverb);
     }
 
 } // namespace Audio::Internal

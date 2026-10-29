@@ -19,6 +19,9 @@ namespace Audio {
          *  noCutoff or above cuts nothing. Held to 20..noCutoff; NaN is taken as noCutoff. */
         float leftCutoff  = noCutoff;
         float rightCutoff = noCutoff;
+        /** How much of the sound goes to the reverb (Audio::SetReverb): 0.0 = none, 1.0 = all of it, before the ears'
+         *  own volume, delay and cutoff (the echo comes from all around). Held to 0..1; NaN is taken as 0. */
+        float send = 0.f;
 
         /** The longest delay an ear can have, in seconds (1 ms; a head is about 0.66 ms wide). */
         static constexpr float maxDelay = 0.001f;

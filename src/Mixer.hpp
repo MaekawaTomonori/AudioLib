@@ -6,6 +6,8 @@
 #include <unordered_map>
 
 #include "include/Ears.hpp"
+#include "include/Reverb.hpp"
+#include "Reverberator.hpp"
 #include "Sound.hpp"
 #include "StreamRefiller.hpp"
 #include "StreamingAsset.hpp"
@@ -13,6 +15,8 @@
 struct ma_engine;
 
 namespace Audio::Internal {
+
+    class Ear;
 
     class Mixer {
         struct PlaybackInstance;
@@ -24,6 +28,8 @@ namespace Audio::Internal {
         uint64_t nextId_      = 1;
         uint64_t nextTrackId_ = 1;
         StreamRefiller refiller_;
+        // 全体の響き。最初の SetReverb で作る（それまで、また作れなかったときは nullptr で、Ear の送る分はどこにもつながない）
+        std::unique_ptr<Reverberator> reverb_;
 
     public:
         ~Mixer();
@@ -59,6 +65,8 @@ namespace Audio::Internal {
 
         // --- Master ---
         void SetMasterVolume(float _volume) const;
+        // 全体の響きを設定する（なければ作り、今ある Ear の送る分をつなぐ）
+        void SetReverb(const Reverb& _reverb);
 
     private:
         // --- Playback Control ---
@@ -70,8 +78,10 @@ namespace Audio::Internal {
         // --- Ear ---
         // 鳴らし始める前に: _ears があれば Ear をはさんでその値から、なくて Ear が残っていれば素通しの値から始める
         void PrepareEar(PlaybackInstance& _instance, const Ears* _ears);
-        // ma_sound と行き先（Track か全体の出口）の間に Ear をはさむ。はさめなければ false で、音はそのまま鳴る
+        // ma_sound と行き先（Track か全体の出口）の間に Ear をはさむ（響きがあれば送る分もつなぐ）。はさめなければ false で、音はそのまま鳴る
         bool AttachEar(PlaybackInstance& _instance);
+        // Ear の 2 つ目の出口（送る分）を響きにつなぐ
+        void SendToReverb(Ear& _ear) const;
 
         // --- State Management ---
         void Cleanup();

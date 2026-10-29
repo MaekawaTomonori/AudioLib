@@ -35,4 +35,8 @@ namespace Audio {
         Internal::GetMixer()->DestroyTrack(_track.GetId());
     }
 
+    void SetReverb(const Reverb& _reverb) {
+        Internal::GetMixer()->SetReverb(_reverb);
+    }
+
 } // namespace Audio

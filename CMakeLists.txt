@@ -12,6 +12,7 @@ add_library(AudioLib STATIC
     src/Mixer.cpp
     src/PlaybackHandle.cpp
     src/Repository.cpp
+    src/Reverberator.cpp
     src/Sound.cpp
     src/StreamingVoice.cpp
     src/StreamRefiller.cpp

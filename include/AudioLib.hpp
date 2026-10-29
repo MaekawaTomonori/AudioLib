@@ -1,6 +1,7 @@
 #ifndef AudioLib_HPP_
 #define AudioLib_HPP_
 #include "Handle.hpp"
+#include "Reverb.hpp"
 #include "TrackHandle.hpp"
 
 namespace Audio {
@@ -27,6 +28,13 @@ namespace Audio {
      * @param _track The track to destroy
      */
     void DestroyTrack(const TrackHandle& _track);
+
+    /** Set the one reverb that playbacks send to with Ears::send (the echo of the listener's place).
+     *  Values move smoothly from the current ones. Nothing is computed while its volume is 0 (the default) or once the
+     *  echo has died away. Does nothing before Initialize or when the output is not stereo.
+     * @param _reverb The decay time, damping, predelay and volume of the reverb
+     */
+    void SetReverb(const Reverb& _reverb);
 
 } // namespace Audio
 
