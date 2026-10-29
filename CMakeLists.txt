@@ -4,6 +4,7 @@ project(AudioLib LANGUAGES CXX)
 add_library(AudioLib STATIC
     src/AudioLib.cpp
     src/Backend.cpp
+    src/Ear.cpp
     src/Handle.cpp
     src/Internal.cpp
     src/LoadDispatcher.cpp

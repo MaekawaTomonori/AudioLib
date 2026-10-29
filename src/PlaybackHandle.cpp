@@ -49,4 +49,9 @@ namespace Audio {
         Internal::GetMixer()->Mute(id_, _mute);
     }
 
+    void PlaybackHandle::SetEars(const Ears& _ears) const {
+        if (!IsValid()) return;
+        Internal::GetMixer()->SetEars(id_, _ears);
+    }
+
 } // namespace Audio

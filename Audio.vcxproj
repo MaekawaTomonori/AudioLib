@@ -98,6 +98,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="include\Handle.hpp" />
+    <ClInclude Include="include\Ears.hpp" />
     <ClInclude Include="include\PlaybackHandle.hpp" />
     <ClInclude Include="include\AudioLib.hpp" />
     <ClInclude Include="include\Result.hpp" />
@@ -112,6 +113,7 @@
     <ClInclude Include="src\LoadPolicy.hpp" />
     <ClInclude Include="src\PcmRingBuffer.hpp" />
     <ClInclude Include="src\StreamingAsset.hpp" />
+    <ClInclude Include="src\Ear.hpp" />
     <ClInclude Include="src\StreamingVoice.hpp" />
     <ClInclude Include="src\StreamRefiller.hpp" />
     <ClInclude Include="vendor\miniaudio.h" />
@@ -128,6 +130,7 @@
     <ClCompile Include="src\Mixer.cpp" />
     <ClCompile Include="src\Repository.cpp" />
     <ClCompile Include="src\Sound.cpp" />
+    <ClCompile Include="src\Ear.cpp" />
     <ClCompile Include="src\StreamingVoice.cpp" />
     <ClCompile Include="src\StreamRefiller.cpp" />
     <ClCompile Include="src\TrackHandle.cpp" />

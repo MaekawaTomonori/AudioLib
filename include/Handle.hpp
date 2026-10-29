@@ -76,8 +76,29 @@ namespace Audio {
                             bool              _loop   = false,
                             const TrackHandle& _track = {}) const;
 
+        /** Play Audio with the volume and delay of each ear set before it starts (see Ears), so that it is heard
+         *  that way from its first sample. Otherwise as Play above. The ears are not used when the output is not stereo.
+         * @param _volume The volume of the audio (0.0 to 1.0)
+         * @param _pitch The pitch of the audio (0.5 to 2.0)
+         * @param _pan The pan of the audio (-1.0 to 1.0)
+         * @param _ears The volume and delay of the left and the right ear
+         * @param _loop Whether the audio should loop
+         * @param _track The track handle to play the audio on
+         */
+        PlaybackHandle Play(float              _volume,
+                            float              _pitch,
+                            float              _pan,
+                            const Ears&        _ears,
+                            bool               _loop  = false,
+                            const TrackHandle& _track = {}) const;
+
         /** Stop all audio associated with this handle. */
         void StopAll() const;
+
+    private:
+        // --- Playback ---
+        // Both Play: wait for the load, start the playback (with the ears when _ears is given), then set the rest
+        PlaybackHandle Start(float _volume, float _pitch, float _pan, bool _loop, const TrackHandle& _track, const Ears* _ears) const;
     };
 
 } // namespace Audio

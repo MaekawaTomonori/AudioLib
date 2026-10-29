@@ -124,6 +124,16 @@ const Result& Handle::IsValid() const {
 
 PlaybackHandle Handle::Play(const float _volume, const float _pitch, const float _pan,
                             const bool _loop, const TrackHandle& _track) const {
+    return Start(_volume, _pitch, _pan, _loop, _track, nullptr);
+}
+
+PlaybackHandle Handle::Play(const float _volume, const float _pitch, const float _pan, const Ears& _ears,
+                            const bool _loop, const TrackHandle& _track) const {
+    return Start(_volume, _pitch, _pan, _loop, _track, &_ears);
+}
+
+PlaybackHandle Handle::Start(const float _volume, const float _pitch, const float _pan,
+                             const bool _loop, const TrackHandle& _track, const Ears* _ears) const {
     impl_->WaitUntilReady();
     if (!impl_->IsLoaded()) return {};
 
@@ -131,9 +141,9 @@ PlaybackHandle Handle::Play(const float _volume, const float _pitch, const float
     const auto* repository = Internal::GetRepository();
     uint64_t id = 0;
     if (auto sound = repository->Find(impl_->id); sound && sound->IsValid()) {
-        id = Internal::GetMixer()->Play(impl_->id, std::move(sound), _track.GetId());
+        id = Internal::GetMixer()->Play(impl_->id, std::move(sound), _track.GetId(), _ears);
     } else if (auto streaming = repository->FindStreaming(impl_->id)) {
-        id = Internal::GetMixer()->PlayStreaming(impl_->id, std::move(streaming), _track.GetId());
+        id = Internal::GetMixer()->PlayStreaming(impl_->id, std::move(streaming), _track.GetId(), _ears);
     }
     if (id == 0) return {};
 
