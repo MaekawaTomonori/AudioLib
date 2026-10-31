@@ -82,10 +82,11 @@ namespace Audio::Internal {
         void PrepareEar(PlaybackInstance& _instance, const Ears* _ears);
         // ma_sound と行き先（Track か全体の出口）の間に Ear をはさむ（響きがあれば送る分もつなぐ）。はさめなければ false で、音はそのまま鳴る
         bool AttachEar(PlaybackInstance& _instance);
-        // Ear の 2 つ目の出口（送る分）を、Ears::reverb の番号の響きにつなぐ（その響きがまだなければ外す）
+        // Ear の 2 つ目の出口（送る分）を Ears::reverb の、3 つ目（聞こえる場所の響きに送る分）を Ears::localReverb の番号の
+        // 響きにつなぐ（変わった出口だけ。その響きがまだなければ外す）
         void SendToReverb(PlaybackInstance& _instance) const;
-        // Ears::reverb の番号。範囲外は 0
-        static int ReverbIndex(const Ears& _ears);
+        // Ears::reverb と localReverb の番号。範囲外は 0
+        static std::array<int, 2> SendTargets(const Ears& _ears);
 
         // --- State Management ---
         void Cleanup();

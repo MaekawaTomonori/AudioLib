@@ -21,7 +21,8 @@ namespace Audio::Internal {
      *    確保・ロックはしない。
      *  - API スレッド: 作成、値の設定（atomic で渡す）、破棄。破棄は ma_sound を外した後に行う（ma_node_uninit は
      *    オーディオスレッドがこのノードの処理を終えるまで待つ）。
-     *  - 出口は 2 つ: 0 は耳ごとの音（行き先へ）、1 は響きに送る分（入力に send を掛けたもの。響きがあれば Reverberator へ）。
+     *  - 出口は 3 つ: 0 は耳ごとの音（行き先へ）、1 は響きに送る分（入力に send を掛けたもの。響きがあれば Reverberator へ）、
+     *    2 は聞こえる場所の響きに送る分（出口 0 の音に localSend を掛けたもの）。
      *  - 音量 1・遅れ 0・カットオフなし（Ears の既定）のときの出口 0 は入力と同じ値になる。
      */
     class Ear {
@@ -41,7 +42,7 @@ namespace Audio::Internal {
         Ear(const Ear&)            = delete;
         Ear& operator=(const Ear&) = delete;
 
-        /** ma_node_attach_output_bus に渡すノード（miniaudio の型を見せないため void*）。出口 0 は耳ごとの音、1 は響きに送る分。 */
+        /** ma_node_attach_output_bus に渡すノード（miniaudio の型を見せないため void*）。出口 0 は耳ごとの音、1 は響きに送る分、2 は聞こえる場所の響きに送る分。 */
         void* AsNode();
 
         // --- Parameters ---

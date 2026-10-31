@@ -20,9 +20,10 @@ namespace Audio::Internal {
         ma_sound*           sound    = nullptr;
         // Ears を使う再生だけ（AttachEar）。ma_sound の後に外す（デストラクタの本体で ma_sound を外し、その後でメンバとして破棄される）
         std::unique_ptr<Ear> ear;
-        // Ear の送る分の行き先: 送りたい響きの番号（Ears::reverb）と、今つないである番号（-1: どこにもつないでいない）
-        int                 sendTo   = 0;
-        int                 sentTo   = -1;
+        // Ear の送る分（[0]: Ears::send、出口 1）と聞こえる場所の響きに送る分（[1]: Ears::localSend、出口 2）の行き先:
+        // 送りたい響きの番号（Ears::reverb、localReverb）と、今つないである番号（-1: どこにもつないでいない）
+        std::array<int, 2>  sendTo{0, 0};
+        std::array<int, 2>  sentTo{-1, -1};
         float               volume   = 1.0f;
         bool                muted    = false;
         State               state    = State::Playing;
@@ -173,13 +174,13 @@ namespace Audio::Internal {
     }
 
     void Mixer::PrepareEar(PlaybackInstance& _instance, const Ears* _ears) {
-        _instance.sendTo = _ears ? ReverbIndex(*_ears) : 0;
+        _instance.sendTo = _ears ? SendTargets(*_ears) : std::array<int, 2>{0, 0};
         if (_ears) {
             if (AttachEar(_instance)) _instance.ear->Restart(*_ears);
         } else if (_instance.ear) {
             _instance.ear->Restart({});
         }
-        if (_instance.ear && _instance.sendTo != _instance.sentTo) SendToReverb(_instance);
+        if (_instance.ear) SendToReverb(_instance);
     }
 
     bool Mixer::AttachEar(PlaybackInstance& _instance) {
@@ -201,26 +202,33 @@ namespace Audio::Internal {
             return false;
         }
         _instance.ear    = std::move(ear);
-        _instance.sentTo = -1;
+        _instance.sentTo = {-1, -1};
         SendToReverb(_instance);
         return true;
     }
 
     void Mixer::SendToReverb(PlaybackInstance& _instance) const {
         auto* node = static_cast<ma_node*>(_instance.ear->AsNode());
-        // つなぎ替えは前のつながりを外す。行き先がまだなければ外すだけ（前の響きに入った分はそのまま消えていく）
-        if (const auto& reverb = reverbs_[static_cast<size_t>(_instance.sendTo)]) {
-            if (ma_node_attach_output_bus(node, 1, static_cast<ma_node*>(reverb->AsNode()), 0) == MA_SUCCESS) {
-                _instance.sentTo = _instance.sendTo;
-                return;
+        for (size_t i = 0; i < _instance.sendTo.size(); ++i) {
+            const int want = _instance.sendTo[i];
+            int&      sent = _instance.sentTo[i];
+            if (want == sent) continue;
+            const auto bus = static_cast<ma_uint32>(i + 1);
+            // つなぎ替えは前のつながりを外す。行き先がまだなければ外すだけ（前の響きに入った分はそのまま消えていく）
+            if (const auto& reverb = reverbs_[static_cast<size_t>(want)]) {
+                if (ma_node_attach_output_bus(node, bus, static_cast<ma_node*>(reverb->AsNode()), 0) == MA_SUCCESS) {
+                    sent = want;
+                    continue;
+                }
             }
+            if (sent >= 0) ma_node_detach_output_bus(node, bus);
+            sent = -1;
         }
-        if (_instance.sentTo >= 0) ma_node_detach_output_bus(node, 1);
-        _instance.sentTo = -1;
     }
 
-    int Mixer::ReverbIndex(const Ears& _ears) {
-        return _ears.reverb >= 0 && _ears.reverb < Reverb::count ? _ears.reverb : 0;
+    std::array<int, 2> Mixer::SendTargets(const Ears& _ears) {
+        const auto index = [](const int _reverb) { return _reverb >= 0 && _reverb < Reverb::count ? _reverb : 0; };
+        return {index(_ears.reverb), index(_ears.localReverb)};
     }
 
     void Mixer::StopInstance(PlaybackInstance& _instance) {
@@ -305,10 +313,10 @@ namespace Audio::Internal {
         const auto it = sounds_.find(_id);
         if (it == sounds_.end()) return;
         auto& instance = *it->second;
-        instance.sendTo = ReverbIndex(_ears);
+        instance.sendTo = SendTargets(_ears);
         if (instance.ear) {
             instance.ear->Set(_ears);
-            if (instance.sendTo != instance.sentTo) SendToReverb(instance);
+            SendToReverb(instance);
         } else if (AttachEar(instance)) {
             instance.ear->Restart(_ears);
         }
@@ -382,8 +390,13 @@ namespace Audio::Internal {
         if (!reverb) {
             reverb = Reverberator::Create(engine_);
             if (!reverb) return;
-            for (auto& instance : sounds_ | std::views::values)
-                if (instance->ear && instance->sendTo == _index) SendToReverb(*instance);
+            for (auto& instance : sounds_ | std::views::values) {
+                if (!instance->ear) continue;
+                // まだつながっていない（行き先がなかった）出口を、作った響きにつなぐ
+                for (size_t i = 0; i < instance->sendTo.size(); ++i)
+                    if (instance->sendTo[i] == _index) instance->sentTo[i] = -1;
+                SendToReverb(*instance);
+            }
         }
         reverb->Set(_reverb);
     }

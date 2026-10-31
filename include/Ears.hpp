@@ -25,6 +25,13 @@ namespace Audio {
         /** Which reverb the send goes to (0..Reverb::count-1; 0 is the one Audio::SetReverb(reverb) sets). Other values
          *  are taken as 0. Changing it while the sound plays sends from then on to the new one; the old one's echo dies away. */
         int reverb = 0;
+        /** How much of the sound as the ears hear it (after their volume, delay and cutoff) also goes to the reverb
+         *  localReverb names: the echo of the place it is heard in, when that is another place than the one it is made in
+         *  (a sound from beyond a wall echoes, muffled, in the listener's room too). 0.0 = none (the default changes no sample).
+         *  Held to 0..1; NaN is taken as 0. */
+        float localSend = 0.f;
+        /** Which reverb localSend goes to (0..Reverb::count-1). Other values are taken as 0. */
+        int localReverb = 0;
 
         /** The longest delay an ear can have, in seconds (1 ms; a head is about 0.66 ms wide). */
         static constexpr float maxDelay = 0.001f;
