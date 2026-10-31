@@ -36,6 +36,13 @@ namespace Audio {
      */
     void SetReverb(const Reverb& _reverb);
 
+    /** Set one of the reverbs that playbacks send to with Ears::send and Ears::reverb (the echo of a place; reverb 0 is the
+     *  one SetReverb(reverb) sets). Otherwise as SetReverb above. Does nothing for an index outside 0..Reverb::count-1.
+     * @param _index Which reverb (0..Reverb::count-1)
+     * @param _reverb The decay time, damping, predelay and volume of the reverb
+     */
+    void SetReverb(int _index, const Reverb& _reverb);
+
 } // namespace Audio
 
 #endif // AudioLib_HPP_

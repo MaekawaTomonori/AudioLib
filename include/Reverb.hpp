@@ -3,8 +3,10 @@
 
 namespace Audio {
 
-    /** The one reverb all playbacks can send to (Ears::send): the echo of the place the listener is in.
-     *  Set with Audio::SetReverb. Its volume is 0 until set, and while it is 0 nothing is computed for it.
+    /** A reverb playbacks can send to (Ears::send, to the one Ears::reverb names): the echo of a place. There are
+     *  Reverb::count of them; reverb 0 is the one Audio::SetReverb(reverb) sets (the echo of the place the listener is in),
+     *  the others are set with Audio::SetReverb(index, reverb) (the echo of the places other sounds are in).
+     *  Each one's volume is 0 until set, and while it is 0 nothing is computed for it.
      */
     struct Reverb {
         /** Seconds for the echo to fall by 60 dB (RT60): longer in big, hard places. Held to 0.1..20. */
@@ -18,6 +20,8 @@ namespace Audio {
 
         /** The longest predelay, in seconds. */
         static constexpr float maxPredelay = 0.1f;
+        /** How many reverbs there are (indices 0..count-1). */
+        static constexpr int count = 4;
     };
 
 } // namespace Audio

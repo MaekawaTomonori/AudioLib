@@ -36,7 +36,11 @@ namespace Audio {
     }
 
     void SetReverb(const Reverb& _reverb) {
-        Internal::GetMixer()->SetReverb(_reverb);
+        Internal::GetMixer()->SetReverb(0, _reverb);
+    }
+
+    void SetReverb(int _index, const Reverb& _reverb) {
+        Internal::GetMixer()->SetReverb(_index, _reverb);
     }
 
 } // namespace Audio

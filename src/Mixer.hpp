@@ -1,6 +1,7 @@
 #ifndef Mixer_HPP_
 #define Mixer_HPP_
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -28,8 +29,9 @@ namespace Audio::Internal {
         uint64_t nextId_      = 1;
         uint64_t nextTrackId_ = 1;
         StreamRefiller refiller_;
-        // 全体の響き。最初の SetReverb で作る（それまで、また作れなかったときは nullptr で、Ear の送る分はどこにもつながない）
-        std::unique_ptr<Reverberator> reverb_;
+        // 響き（Reverb::count 個）。それぞれ最初の SetReverb で作る（それまで、また作れなかったときは nullptr で、そこへ送る Ear の
+        // 送る分はどこにもつながない）
+        std::array<std::unique_ptr<Reverberator>, Reverb::count> reverbs_;
 
     public:
         ~Mixer();
@@ -65,8 +67,8 @@ namespace Audio::Internal {
 
         // --- Master ---
         void SetMasterVolume(float _volume) const;
-        // 全体の響きを設定する（なければ作り、今ある Ear の送る分をつなぐ）
-        void SetReverb(const Reverb& _reverb);
+        // _index 番の響きを設定する（なければ作り、そこへ送る今ある Ear の送る分をつなぐ）。範囲外の番号は何もしない
+        void SetReverb(int _index, const Reverb& _reverb);
 
     private:
         // --- Playback Control ---
@@ -80,8 +82,10 @@ namespace Audio::Internal {
         void PrepareEar(PlaybackInstance& _instance, const Ears* _ears);
         // ma_sound と行き先（Track か全体の出口）の間に Ear をはさむ（響きがあれば送る分もつなぐ）。はさめなければ false で、音はそのまま鳴る
         bool AttachEar(PlaybackInstance& _instance);
-        // Ear の 2 つ目の出口（送る分）を響きにつなぐ
-        void SendToReverb(Ear& _ear) const;
+        // Ear の 2 つ目の出口（送る分）を、Ears::reverb の番号の響きにつなぐ（その響きがまだなければ外す）
+        void SendToReverb(PlaybackInstance& _instance) const;
+        // Ears::reverb の番号。範囲外は 0
+        static int ReverbIndex(const Ears& _ears);
 
         // --- State Management ---
         void Cleanup();

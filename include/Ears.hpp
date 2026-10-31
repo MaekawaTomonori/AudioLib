@@ -22,6 +22,9 @@ namespace Audio {
         /** How much of the sound goes to the reverb (Audio::SetReverb): 0.0 = none, 1.0 = all of it, before the ears'
          *  own volume, delay and cutoff (the echo comes from all around). Held to 0..1; NaN is taken as 0. */
         float send = 0.f;
+        /** Which reverb the send goes to (0..Reverb::count-1; 0 is the one Audio::SetReverb(reverb) sets). Other values
+         *  are taken as 0. Changing it while the sound plays sends from then on to the new one; the old one's echo dies away. */
+        int reverb = 0;
 
         /** The longest delay an ear can have, in seconds (1 ms; a head is about 0.66 ms wide). */
         static constexpr float maxDelay = 0.001f;
